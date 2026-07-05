@@ -49,7 +49,11 @@ class IssueAnalyzer:
             "country": country_name,
             "travel_warning_level": _travel_warning_level(warning_items[0]) if warning_items else None,
             "recent_safety_notices": [
-                html.unescape(item.get("content", "")).replace("\r\n", " ")[:200]
+                {
+                    "date": item.get("wrtDt"),
+                    "title": item.get("title"),
+                    "summary": html.unescape(item.get("content", "")).replace("\r\n", " ")[:200],
+                }
                 for item in safety_items[:5]
             ],
             "security_environment": {

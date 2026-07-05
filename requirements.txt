@@ -1,3 +1,5 @@
 httpx
 python-dotenv
 xmltodict
+fastapi
+uvicorn[standard]
