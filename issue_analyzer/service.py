@@ -14,6 +14,18 @@ def _items(api_response: dict) -> list[dict]:
     return item if isinstance(item, list) else [item]
 
 
+def _situation_date(entry: dict) -> str | None:
+    """연/월/일 중 일부가 없을 수 있어 (예: 월까지만 알려진 이벤트), 있는 만큼만 조합한다."""
+    year, month, day = entry.get("year"), entry.get("month"), entry.get("day")
+    if year is None:
+        return None
+    if month is None:
+        return str(year)
+    if day is None:
+        return f"{year}-{month:02}"
+    return f"{year}-{month:02}-{day:02}"
+
+
 def _travel_warning_level(entry: dict) -> str | None:
     """attention(1단계)~ban(4단계) 중 활성화된 가장 높은 단계를 찾는다. _partial이면 일부 지역에만 적용."""
     levels = [
@@ -63,7 +75,7 @@ class IssueAnalyzer:
             },
             "recent_situations": [
                 {
-                    "date": f"{item.get('year')}-{item.get('month'):02}-{item.get('day'):02}",
+                    "date": _situation_date(item),
                     "event": item.get("situation_info_cn"),
                 }
                 for item in situation_items[:5]
