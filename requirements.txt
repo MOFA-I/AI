@@ -3,3 +3,4 @@ python-dotenv
 xmltodict
 fastapi
 uvicorn[standard]
+anthropic
