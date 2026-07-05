@@ -19,6 +19,7 @@ result = IssueAnalyzer().analyze("일본")
 ```
 
 <br>
+
 #### 출력 형태
 ```json
 {
