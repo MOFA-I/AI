@@ -10,10 +10,7 @@ Agent3 - 데이터 기반 정량 분석 엔진 (pandas + scikit-learn)
     2) Cooperation Index (5단계)
     3) Cooperation Opportunity Score (분야별 랭킹)
     4) 유사국가 추천 (코사인 유사도 + KMeans 군집)
-  을 계산해 다음 Agent(예: 보고서 생성 Agent)에 넘길 수 있는 형태로 반환한다.
-
-실행 방법(프로젝트 루트 diplomacy_agent/ 에서):
-    python -m agents.agent3_quant
+  을 계산해 다음 Agent(예: 보고서 생성 Agent)에 넘길 수 있는 형태로 반환
 """
 
 from __future__ import annotations
