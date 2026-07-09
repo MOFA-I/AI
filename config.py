@@ -46,15 +46,6 @@ ADVISORY_DEFAULT_LEVEL = 2  # 파싱 실패 시 중간값으로 처리
 SAFETY_NOTICE_MAX_COUNT = 10
 SAFETY_NOTICE_RECENT_WINDOW_DAYS = 365  # 이 기간 내 공지만 우선 집계, 없으면 전체 건수로 대체
 
-# 실업률/자살률을 0~100 위험도로 환산할 때 기준
-UNEMPLOYMENT_RATE_GLOBAL_AVG = 4.9    # % (ILO, 2024)
-UNEMPLOYMENT_RATE_MAX = 25.0          # % (고실업 위기국 수준 상한)
-
-SUICIDE_DEATH_RATE_GLOBAL_AVG = 9.1   # 인구 10만명당 (World Bank, 2021)
-SUICIDE_DEATH_RATE_MAX = 30.0         # 인구 10만명당 (WHO 통계 최상위권 국가 수준 상한)
-
-
-
 # ── 5) ODA 분야 <-> Opportunity 분야 매핑 ───────────────────────────
 # 실제 KOICA/외교부 코드북이 확정되면 이 매핑만 교체하면 됨
 ODA_TO_OPPORTUNITY = {
