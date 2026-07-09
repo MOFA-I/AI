@@ -42,10 +42,6 @@ ADVISORY_KEYWORD_LEVEL = {
 }
 ADVISORY_DEFAULT_LEVEL = 2  # 파싱 실패 시 중간값으로 처리
 
-# 안전공지 개수를 0~100 점수로 환산할 때 기준 (이 건수 이상이면 만점 100)
-SAFETY_NOTICE_MAX_COUNT = 10
-SAFETY_NOTICE_RECENT_WINDOW_DAYS = 365  # 이 기간 내 공지만 우선 집계, 없으면 전체 건수로 대체
-
 # ── 5) ODA 분야 <-> Opportunity 분야 매핑 ───────────────────────────
 # 실제 KOICA/외교부 코드북이 확정되면 이 매핑만 교체하면 됨
 ODA_TO_OPPORTUNITY = {
