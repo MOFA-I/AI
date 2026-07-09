@@ -1,9 +1,6 @@
 # -*- coding: utf-8 -*-
 """
 config.py - 프로젝트 전체 설정값 모음
-
-가중치가 코드 여기저기 흩어져 있으면 나중에 정책이 바뀔 때(예: "위험도 가중치를
-여행경보 50%로 올려라") 여러 파일을 뒤져야 함. 여기 숫자만 고치면 전체 반영되도록 모아둠.
 """
 
 # ── 1) 위험도 점수 가중치 ────────────────────────────────────────────
@@ -34,6 +31,29 @@ OPPORTUNITY_WEIGHTS = {
 SIMILARITY_TOP_N = 3       # 기본 추천 개수
 CLUSTER_N = 4               # KMeans 군집 개수
 RANDOM_STATE = 42           # 재현성을 위한 시드 고정
+
+# ── 4-1) Agent1 raw 데이터 파싱용 설정 (여행경보/안전공지/사회지표) ──
+# 여행경보 문자열에 "N단계" 숫자가 없을 때 사용
+ADVISORY_KEYWORD_LEVEL = {
+    "여행금지": 4,
+    "철수권고": 3,
+    "여행자제": 2,
+    "여행유의": 1,
+}
+ADVISORY_DEFAULT_LEVEL = 2  # 파싱 실패 시 중간값으로 처리
+
+# 안전공지 개수를 0~100 점수로 환산할 때 기준 (이 건수 이상이면 만점 100)
+SAFETY_NOTICE_MAX_COUNT = 10
+SAFETY_NOTICE_RECENT_WINDOW_DAYS = 365  # 이 기간 내 공지만 우선 집계, 없으면 전체 건수로 대체
+
+# 실업률/자살률을 0~100 위험도로 환산할 때 기준
+UNEMPLOYMENT_RATE_GLOBAL_AVG = 4.9    # % (ILO, 2024)
+UNEMPLOYMENT_RATE_MAX = 25.0          # % (고실업 위기국 수준 상한)
+
+SUICIDE_DEATH_RATE_GLOBAL_AVG = 9.1   # 인구 10만명당 (World Bank, 2021)
+SUICIDE_DEATH_RATE_MAX = 30.0         # 인구 10만명당 (WHO 통계 최상위권 국가 수준 상한)
+
+
 
 # ── 5) ODA 분야 <-> Opportunity 분야 매핑 ───────────────────────────
 # 실제 KOICA/외교부 코드북이 확정되면 이 매핑만 교체하면 됨
