@@ -36,7 +36,6 @@ class Agent3Analyzer:
         self.countries = list(raw_data.keys())
         self.df = self._build_base_dataframe()
 
-    # ------------------------------------------------------------------
     def _build_base_dataframe(self) -> pd.DataFrame:
         rows = []
         for country, v in self.raw.items():
@@ -58,6 +57,117 @@ class Agent3Analyzer:
                 row[f"history__{f}"] = v["cooperation_history_score"][f]
             rows.append(row)
         return pd.DataFrame(rows).set_index("country")
+
+    def calc_risk_score(self) -> pd.Series:
+        df = self.df
+        w = config.RISK_WEIGHTS
+        advisory_scaled = MinMaxScaler((0, 100)).fit_transform(df[["travel_advisory_level"]]).flatten()
+        notice_scaled = MinMaxScaler((0, 100)).fit_transform(df[["safety_notice_count_monthly"]]).flatten()
+        keyword_score = df["political_risk_keyword_score"].to_numpy()
+        risk = (
+            advisory_scaled * w["travel_advisory"]
+            + notice_scaled * w["safety_notice"]
+            + keyword_score * w["political_keyword"]
+        )
+        return pd.Series(np.round(risk, 2), index=df.index, name="risk_score")
+
+    def calc_cooperation_index(self) -> pd.DataFrame:
+        df = self.df
+        w = config.COOPERATION_WEIGHTS
+        scaler = MinMaxScaler((0, 100))
+        trade_s = scaler.fit_transform(df[["trade_volume_usd_million"]]).flatten()
+        oda_s = scaler.fit_transform(df[["oda_cumulative_usd_million"]]).flatten()
+        expat_s = scaler.fit_transform(df[["expat_count"]]).flatten()
+        year_s = scaler.fit_transform(-df[["diplomatic_year"]]).flatten()  # 오래될수록 가점
+
+        score = (
+            trade_s * w["trade_volume"]
+            + oda_s * w["oda_cumulative"]
+            + expat_s * w["expat_count"]
+            + year_s * w["diplomatic_year"]
+        )
+        score = pd.Series(np.round(score, 2), index=df.index, name="score")
+
+        grade = pd.qcut(
+            score.rank(method="first"), config.COOPERATION_GRADE_COUNT,
+            labels=list(range(1, config.COOPERATION_GRADE_COUNT + 1))
+        ).astype(int)
+        grade.name = "grade"
+        return pd.concat([score, grade], axis=1)
+
+    def calc_opportunity_score(self) -> pd.DataFrame:
+        w = config.OPPORTUNITY_WEIGHTS
+        df = self.df
+        scaler = MinMaxScaler((0, 100))
+        result = pd.DataFrame(index=df.index)
+
+        for opp_field in OPPORTUNITY_FIELDS:
+            oda_field = next(k for k, v in config.ODA_TO_OPPORTUNITY.items() if v == opp_field)
+            oda_col = f"oda_freq__{oda_field}"
+            oda_norm = scaler.fit_transform(df[[oda_col]]).flatten()
+            industry_col = df[f"industry__{opp_field}"].to_numpy()
+            keyword_col = df[f"keyword__{opp_field}"].to_numpy()
+            history_col = df[f"history__{opp_field}"].to_numpy()
+            total = (
+                oda_norm * w["oda_freq"]
+                + industry_col * w["industry"]
+                + keyword_col * w["keyword"]
+                + history_col * w["history"]
+            )
+            result[opp_field] = np.round(total, 1)
+        return result
+
+    def opportunity_ranking(self, opp_df: pd.DataFrame) -> dict:
+        return {
+            country: list(row.sort_values(ascending=False).items())
+            for country, row in opp_df.iterrows()
+        }
+
+    def build_feature_matrix(self, risk, coop, opp) -> pd.DataFrame:
+        return pd.concat([risk, coop["score"].rename("coop_score"), opp], axis=1)
+
+    def similarity_matrix(self, feature_df: pd.DataFrame) -> pd.DataFrame:
+        scaled = MinMaxScaler().fit_transform(feature_df.to_numpy())
+        sim = cosine_similarity(scaled)
+        return pd.DataFrame(sim, index=feature_df.index, columns=feature_df.index)
+
+    def recommend_similar(self, sim_matrix: pd.DataFrame, target: str, top_n: int = None):
+        top_n = top_n or config.SIMILARITY_TOP_N
+        if target not in sim_matrix.index:
+            raise ValueError(f"'{target}' 은(는) 데이터에 없습니다.")
+        s = sim_matrix.loc[target].drop(target).sort_values(ascending=False)
+        return s.head(top_n)
+
+    def cluster_countries(self, feature_df: pd.DataFrame) -> pd.Series:
+        scaled = MinMaxScaler().fit_transform(feature_df.to_numpy())
+        km = KMeans(n_clusters=config.CLUSTER_N, random_state=config.RANDOM_STATE, n_init=10)
+        labels = km.fit_predict(scaled)
+        return pd.Series(labels, index=feature_df.index, name="cluster")
+
+    def pca_2d(self, feature_df: pd.DataFrame) -> pd.DataFrame:
+        scaled = MinMaxScaler().fit_transform(feature_df.to_numpy())
+        coords = PCA(n_components=2, random_state=config.RANDOM_STATE).fit_transform(scaled)
+        return pd.DataFrame(coords, index=feature_df.index, columns=["pc1", "pc2"])
+
+    def run_all(self):
+        risk = self.calc_risk_score()
+        coop = self.calc_cooperation_index()
+        opp = self.calc_opportunity_score()
+        opp_rank = self.opportunity_ranking(opp)
+        feature_df = self.build_feature_matrix(risk, coop, opp)
+        sim = self.similarity_matrix(feature_df)
+        clusters = self.cluster_countries(feature_df)
+        pca_coords = self.pca_2d(feature_df)
+        return {
+            "risk_score": risk,
+            "cooperation_index": coop,
+            "opportunity_score": opp,
+            "opportunity_ranking": opp_rank,
+            "feature_matrix": feature_df,
+            "similarity_matrix": sim,
+            "cluster": clusters,
+            "pca_coords": pca_coords,
+        }
 
     # ------------------------------------------------------------------
     # 1) 위험도 점수
