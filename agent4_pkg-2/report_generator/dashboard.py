@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-"""dashboard.py — dashboard.charts 블록. v1.1
+"""dashboard.py — dashboard.charts 블록. v1.2
 
-변경: oda_trend는 지원실적 CSV의 실데이터(oda_yearly, 총액만) 사용.
-     opportunity_ranking은 분야 데이터 유의미할 때만.
-     risk_components(위험도 세부요인) 신설 — agent3 v2 components 활용.
+변경: opportunity_ranking 제거 (Opportunity Score 폐지).
+     oda_trend를 기업·연구자 모두에게 노출.
+     risk_components(위험도 세부요인) — agent3 v2 components 활용.
 """
 
 from __future__ import annotations
@@ -41,22 +41,14 @@ def build_dashboard(countries: list[str],
             data=[[_COMP_LABEL.get(k, k), round(v, 1)]
                   for k, v in a3_main.risk_score.components.items()]))
 
-    # 3) 유망분야 랭킹 — 분야 데이터 유의미할 때만 (KOICA API 복구 시 자동 부활)
-    if a3_main.opportunity_meaningful:
-        charts.append(Chart(
-            id="opportunity_ranking", source_agent="agent3", type="bar_h",
-            title=f"{main} 분야별 협력 기회",
-            data={"country": main,
-                  "ranking": [[f, s] for f, s in a3_main.opportunity_ranking]}))
-
-    # 4) 유사국가
+    # 3) 유사국가
     if a3_main.similar_countries:
         charts.append(Chart(
             id="similar_countries", source_agent="agent3", type="bar",
             title="대안 국가 (유사도)" if target == "기업" else "유사 외교 패턴 국가",
             data=[[n, round(float(s), 3)] for n, s in a3_main.similar_countries]))
 
-    # 5) ODA 연도별 추이 — 지원실적 CSV 실데이터 (총액만, 분야별 없음)
+    # 4) ODA 연도별 추이 — 기업·연구자 모두 노출
     a2_main = (agent2 or {}).get(main)
     if a2_main and a2_main.oda_yearly:
         years = sorted(a2_main.oda_yearly)
@@ -66,7 +58,7 @@ def build_dashboard(countries: list[str],
             data={"years": years,
                   "values": [round(a2_main.oda_yearly[y], 2) for y in years]}))
 
-    # 6) 외교 타임라인 (연구자): 수교연도 + Agent1 최근정세 + 안전공지
+    # 5) 외교 타임라인 (연구자): 수교연도 + Agent1 최근정세 + 안전공지
     if target == "연구자":
         events = []
         if a2_main and a2_main.diplomatic_year:

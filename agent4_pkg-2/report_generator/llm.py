@@ -46,20 +46,14 @@ def _fallback(countries: list[str], agent3) -> Briefing:
     """규칙 기반 폴백 — 데이터 수치로 최소한의 문장 조립."""
     main = countries[0]
     a3 = agent3[main]
-    top = a3.opportunity_ranking[0] if a3.opportunity_ranking else ("-", 0)
     return Briefing(
         executive_summary=(
             f"{main}의 위험도는 {a3.risk_score.score:.1f}/100, "
             f"협력지수는 {a3.cooperation_index.score:.1f}"
             f"({a3.cooperation_index.grade}등급)입니다. "
-            f"최우선 유망분야는 {top[0]}({top[1]}점)입니다. "
             f"(LLM 연결 시 상세 브리핑으로 대체됩니다)"),
         situation_analysis="상세 정세 분석은 LLM 연동 후 제공됩니다.",
         risk_analysis=f"정량 위험도 {a3.risk_score.score:.1f}점 — 대시보드 지표를 참고하십시오.",
-        opportunity_analysis=(
-            ("분야별 기회 점수: "
-             + ", ".join(f"{f} {s}" for f, s in a3.opportunity_ranking[:3]))
-            if a3.opportunity_meaningful
-            else "분야별 데이터 소스(KOICA 사업정보 API) 장애로 분야 분석은 제공되지 않습니다."),
+        opportunity_analysis="ODA 및 무역 데이터를 바탕으로 협력 기회를 검토하십시오.",
         recommendation="카드의 진출 판정(규칙 기반)을 참고하십시오.",
     )

@@ -21,10 +21,6 @@ def entry_verdict(a3: Agent3Data) -> dict:
     if a3.risk_score.components:
         worst = max(a3.risk_score.components.items(), key=lambda x: x[1])
         grounds.append(f"주요 위험요인: {_comp_label(worst[0])} {worst[1]:.0f}점")
-    # 유망분야는 분야 데이터가 유의미할 때만 근거에 포함
-    if a3.opportunity_meaningful and a3.opportunity_ranking:
-        f, s = a3.opportunity_ranking[0]
-        grounds.append(f"최우선 유망분야: {f} {s}점")
 
     if risk < t["recommend_risk_max"] and grade >= t["recommend_grade_min"]:
         value, margin = "추천", ((t["recommend_risk_max"] - risk)

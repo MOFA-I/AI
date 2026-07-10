@@ -65,18 +65,13 @@ def render_map(block: MapBlock) -> str:
             is_oda = layer.id == "oda_summary"
             for f in layer.features:
                 if is_oda:
-                    items = "".join(
-                        f"<li>{p['name'][:30]}"
-                        + (f" ({p['start_year']}~)" if p.get('start_year') else "")
-                        + "</li>"
-                        for p in f.get("recent_projects", []))
                     cum = f.get("cumulative_usd_million")
-                    popup = (f"<b>{f['country']} — KOICA ODA {f['count']}건</b><br>"
-                             + (f"누적 지원 {cum:,.1f}백만$<br>" if cum else "")
-                             + f"<u>최근 사업</u><ul style='margin:4px 0 0 16px'>{items}</ul>"
-                             + "<small>※ 사업 위치정보 미제공 → 국가 단위 표시</small>")
+                    popup = (f"<b>{f['country']} KOICA ODA</b><br>"
+                             + (f"누적 지원액 {cum:,.1f}백만$" if cum
+                                else "지원액 정보 없음"))
                     icon = folium.Icon(color="blue", icon="briefcase", prefix="fa")
-                    tip = f"{f['country']} ODA {f['count']}건"
+                    tip = (f"{f['country']} ODA 누적 {cum:,.0f}백만$" if cum
+                           else f"{f['country']} ODA")
                 else:
                     items = "".join(
                         f"<li>{o['name']}"

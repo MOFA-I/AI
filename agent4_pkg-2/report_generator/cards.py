@@ -34,9 +34,4 @@ def build_cards(main_country: str, a3: Agent3Data, target: str) -> list[Card]:
              sub=f"Cooperation Index {coop.score:.1f}" if target == "기업"
                  else f"{coop.grade}등급/5"),
     ]
-    # 유망분야 카드: 분야 데이터 유의미할 때만 (KOICA API 복구 시 자동 활성화)
-    if a3.opportunity_meaningful and a3.opportunity_ranking:
-        f, s = a3.opportunity_ranking[0]
-        cards.append(Card(id="top_opportunity", label="최우선 유망분야",
-                          value=f, sub=f"{s}점"))
     return cards

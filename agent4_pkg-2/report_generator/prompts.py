@@ -42,9 +42,6 @@ def _summarize_inputs(countries, agent1, agent2, agent3) -> str:
         if a3.risk_score.components:
             comp = ", ".join(f"{k} {v:.0f}" for k, v in a3.risk_score.components.items())
             line += f" [위험요인: {comp}]"
-        if a3.opportunity_meaningful:
-            top3 = a3.opportunity_ranking[:3]
-            line += f", 유망분야 {', '.join(f'{f}({s})' for f, s in top3)}"
         if a3.similar_countries:
             line += f", 유사국가 {', '.join(n for n, _ in a3.similar_countries[:3])}"
         a1: Optional[Agent1Data] = agent1.get(c)
@@ -61,12 +58,10 @@ def _summarize_inputs(countries, agent1, agent2, agent3) -> str:
         if a2:
             if a2.trade_volume_usd_million:
                 line += f"\n  교역액 {a2.trade_volume_usd_million:,.0f}백만$"
-            if a2.oda_projects:
-                line += f", KOICA 사업 {len(a2.oda_projects)}건"
-            if a2.sources_failed:
-                line += f" (일부 소스 장애→대체자료 사용: {', '.join(a2.sources_failed)})"
             if a2.oda_cumulative_usd_million:
                 line += f", ODA누적 {a2.oda_cumulative_usd_million:,.0f}백만$"
+            if a2.sources_failed:
+                line += f" (일부 소스 장애→대체자료 사용: {', '.join(a2.sources_failed)})"
             if a2.diplomatic_year:
                 line += f", 수교 {a2.diplomatic_year}년"
         lines.append(line)
@@ -89,7 +84,6 @@ def build_briefing_prompt(user_query: str, target: str, countries: list[str],
 [지표 정의]
 - 위험도(0~100): 여행경보 40% + 안전공지 빈도 30% + 정세키워드 30%
 - Cooperation Index: 무역 30% + ODA 30% + 교민 20% + 수교연도 20% → 5등급
-- 분야별 점수: KOICA ODA 분야별 빈도 기반 (분야 데이터 제공 시에만 유효)
 
 [출력 — 아래 JSON만, 수치는 위 데이터 그대로 인용]
 {{

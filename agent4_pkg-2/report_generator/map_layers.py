@@ -1,10 +1,8 @@
 # -*- coding: utf-8 -*-
-"""map_layers.py — map 블록(JSON) 생성. v1.1
+"""map_layers.py — map 블록(JSON) 생성. v1.2
 
-Agent 2 실데이터 제약 반영:
-- ODA 사업: 지역·좌표 없음 → 국가 중심 '집계 마커'(사업 N건 + 최근 목록)
-  (개별 사업에 lat/lon 있으면 개별 마커로 자동 전환 — API 복구 대비)
-- 한국기관: 도시 없음 → 국가 중심 집계 마커
+oda_summary: {country, lat, lon, cumulative_usd_million} 만 포함.
+cumulative 없으면 레이어 전체 스킵.
 """
 
 from __future__ import annotations
@@ -51,32 +49,16 @@ def build_map(countries: list[str],
 
     # ── Agent 2 레이어 ──
     if agent2:
-        oda_point, oda_agg, org_agg, flows = [], [], [], []
+        oda_feats, org_agg, flows = [], [], []
         for c, a2 in agent2.items():
             cxy = coords.get(c) or get_coords(c)
             if not cxy:
                 continue
 
-            # ODA: 좌표 있는 사업은 개별 마커, 없으면 집계
-            no_coord = []
-            for p in a2.oda_projects:
-                if p.lat is not None and p.lon is not None:
-                    oda_point.append({"name": p.name, "field": p.field,
-                                      "lat": p.lat, "lon": p.lon,
-                                      "year": p.start_year, "country": c})
-                else:
-                    no_coord.append(p)
-            if no_coord:
-                recent = sorted(no_coord,
-                                key=lambda p: p.start_year or 0,
-                                reverse=True)[:5]
-                oda_agg.append({
+            if a2.oda_cumulative_usd_million:
+                oda_feats.append({
                     "country": c, "lat": cxy[0], "lon": cxy[1],
-                    "count": len(no_coord),
                     "cumulative_usd_million": a2.oda_cumulative_usd_million,
-                    "recent_projects": [
-                        {"name": p.name, "start_year": p.start_year}
-                        for p in recent],
                 })
 
             if a2.korea_orgs:
@@ -92,15 +74,10 @@ def build_map(countries: list[str],
                               "label": f"한-{c} 교역",
                               "value_usd_million": a2.trade_volume_usd_million})
 
-        if oda_point:
-            layers.append(MapLayer(id="oda_projects", source_agent="agent2",
-                                   type="point_markers",
-                                   title="KOICA ODA 사업(개별)",
-                                   features=oda_point))
-        if oda_agg:
+        if oda_feats:
             layers.append(MapLayer(id="oda_summary", source_agent="agent2",
                                    type="agg_markers", title="KOICA ODA 현황",
-                                   features=oda_agg))
+                                   features=oda_feats))
         if org_agg:
             layers.append(MapLayer(id="korea_orgs", source_agent="agent2",
                                    type="agg_markers", title="한국기관 진출",

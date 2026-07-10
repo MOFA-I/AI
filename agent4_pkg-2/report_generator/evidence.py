@@ -8,12 +8,11 @@ from typing import Optional
 from .schemas import Agent2Data, Agent3Data, EvidenceEntry
 
 _SRC_LABEL = {
-    "relation": "관계 API", "trade": "무역관계 API",
-    "koica_country_support_cumulative": "KOICA 지원실적(누적)",
-    "koica_country_support_yearly": "KOICA 지원실적(연도별)",
-    "koica_business": "KOICA 사업정보 API(분야)",
-    "koica_project_list_fallback": "KOICA 사업목록 CSV(대체)",
-    "overseas_org": "해외진출현황 CSV",
+    "diplomatic": "외교관계 API",
+    "trade": "무역관계 API",
+    "oda_cumulative": "KOICA ODA 누적지원",
+    "oda_yearly": "KOICA ODA 연도별",
+    "overseas_presence": "해외진출현황",
 }
 
 
