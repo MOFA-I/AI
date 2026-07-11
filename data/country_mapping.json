@@ -1,0 +1,991 @@
+{
+  "DR콩고": {
+    "iso2": "CG",
+    "matched_to": "콩고",
+    "score": 90.0
+  },
+  "UNOCHA 유엔인도지원조정국": {
+    "iso2": "IN",
+    "matched_to": "인도",
+    "score": 90.0
+  },
+  "UNRWA 유엔팔레스타인난민구호사업기구 ": {
+    "iso2": "PS",
+    "matched_to": "팔레스타인",
+    "score": 90.0
+  },
+  "가나": {
+    "iso2": "GH",
+    "matched_to": "가나",
+    "score": 100.0
+  },
+  "가나대학교": {
+    "iso2": "GH",
+    "matched_to": "가나",
+    "score": 90.0
+  },
+  "가봉": {
+    "iso2": "GA",
+    "matched_to": "가봉",
+    "score": 100.0
+  },
+  "가이아나": {
+    "iso2": "GY",
+    "matched_to": "가이아나",
+    "score": 100.0
+  },
+  "감비아": {
+    "iso2": "GM",
+    "matched_to": "감비아",
+    "score": 100.0
+  },
+  "과테말라": {
+    "iso2": "GT",
+    "matched_to": "과테말라",
+    "score": 100.0
+  },
+  "그레나다": {
+    "iso2": "GD",
+    "matched_to": "그레나다",
+    "score": 100.0
+  },
+  "기니": {
+    "iso2": "GN",
+    "matched_to": "기니",
+    "score": 100.0
+  },
+  "기니비사우": {
+    "iso2": "GW",
+    "matched_to": "기니비사우",
+    "score": 100.0
+  },
+  "나미비아": {
+    "iso2": NaN,
+    "matched_to": "나미비아",
+    "score": 100.0
+  },
+  "나우루": {
+    "iso2": "NR",
+    "matched_to": "나우루",
+    "score": 100.0
+  },
+  "나이지리아": {
+    "iso2": "NG",
+    "matched_to": "나이지리아",
+    "score": 100.0
+  },
+  "남수단": {
+    "iso2": "SS",
+    "matched_to": "남수단",
+    "score": 100.0
+  },
+  "남아프리카공화국": {
+    "iso2": "ZA",
+    "matched_to": "남아프리카공화국",
+    "score": 100.0
+  },
+  "네덜란드": {
+    "iso2": "NL",
+    "matched_to": "네덜란드",
+    "score": 100.0
+  },
+  "네팔": {
+    "iso2": "NP",
+    "matched_to": "네팔연방",
+    "score": 90.0
+  },
+  "노르웨이": {
+    "iso2": "NO",
+    "matched_to": "노르웨이",
+    "score": 100.0
+  },
+  "뉴질랜드": {
+    "iso2": "NZ",
+    "matched_to": "뉴질랜드",
+    "score": 100.0
+  },
+  "니우에": {
+    "iso2": "NU",
+    "matched_to": "니우에",
+    "score": 100.0
+  },
+  "니제르": {
+    "iso2": "NE",
+    "matched_to": "니제르",
+    "score": 100.0
+  },
+  "니카라과": {
+    "iso2": "NI",
+    "matched_to": "니카라과",
+    "score": 100.0
+  },
+  "대만": {
+    "iso2": "TW",
+    "matched_to": "대만",
+    "score": 100.0
+  },
+  "덴마크": {
+    "iso2": "DK",
+    "matched_to": "덴마크",
+    "score": 100.0
+  },
+  "도미니카공화국": {
+    "iso2": "DO",
+    "matched_to": "도미니카공화국",
+    "score": 100.0
+  },
+  "도미니카연방": {
+    "iso2": "DM",
+    "matched_to": "도미니카연방",
+    "score": 100.0
+  },
+  "동티모르": {
+    "iso2": "TL",
+    "matched_to": "동티모르",
+    "score": 100.0
+  },
+  "라오스": {
+    "iso2": "LA",
+    "matched_to": "라오스",
+    "score": 100.0
+  },
+  "라오스-베트남": {
+    "iso2": "LA",
+    "matched_to": "라오스",
+    "score": 90.0
+  },
+  "라이베리아": {
+    "iso2": "LR",
+    "matched_to": "라이베리아",
+    "score": 100.0
+  },
+  "라트비아": {
+    "iso2": "LV",
+    "matched_to": "라트비아",
+    "score": 100.0
+  },
+  "러시아": {
+    "iso2": "RU",
+    "matched_to": "러시아",
+    "score": 100.0
+  },
+  "레바논": {
+    "iso2": "LB",
+    "matched_to": "레바논",
+    "score": 100.0
+  },
+  "레소토": {
+    "iso2": "LS",
+    "matched_to": "레소토",
+    "score": 100.0
+  },
+  "루마니아": {
+    "iso2": "RO",
+    "matched_to": "루마니아",
+    "score": 100.0
+  },
+  "르완다": {
+    "iso2": "RW",
+    "matched_to": "르완다",
+    "score": 100.0
+  },
+  "리비아": {
+    "iso2": "LY",
+    "matched_to": "리비아",
+    "score": 100.0
+  },
+  "리투아니아": {
+    "iso2": "LT",
+    "matched_to": "리투아니아",
+    "score": 100.0
+  },
+  "마다가스카르": {
+    "iso2": "MG",
+    "matched_to": "마다가스카르",
+    "score": 100.0
+  },
+  "마케도니아": {
+    "iso2": "MK",
+    "matched_to": "북마케도니아",
+    "score": 90.9
+  },
+  "말라위": {
+    "iso2": "MW",
+    "matched_to": "말라위",
+    "score": 100.0
+  },
+  "말레이시아": {
+    "iso2": "MY",
+    "matched_to": "말레이시아",
+    "score": 100.0
+  },
+  "말리": {
+    "iso2": "ML",
+    "matched_to": "말리",
+    "score": 100.0
+  },
+  "멕시코": {
+    "iso2": "MX",
+    "matched_to": "멕시코",
+    "score": 100.0
+  },
+  "모로코": {
+    "iso2": "MA",
+    "matched_to": "모로코",
+    "score": 100.0
+  },
+  "모리셔스": {
+    "iso2": "MU",
+    "matched_to": "모리셔스",
+    "score": 100.0
+  },
+  "모잠비크": {
+    "iso2": "MZ",
+    "matched_to": "모잠비크",
+    "score": 100.0
+  },
+  "몬테네그로": {
+    "iso2": "ME",
+    "matched_to": "몬테네그로",
+    "score": 100.0
+  },
+  "몰도바": {
+    "iso2": "MD",
+    "matched_to": "몰도바",
+    "score": 100.0
+  },
+  "몰디브": {
+    "iso2": "MV",
+    "matched_to": "몰디브",
+    "score": 100.0
+  },
+  "몰타": {
+    "iso2": "MT",
+    "matched_to": "몰타",
+    "score": 100.0
+  },
+  "몽골": {
+    "iso2": "MN",
+    "matched_to": "몽골",
+    "score": 100.0
+  },
+  "몽골과학기술대": {
+    "iso2": "MN",
+    "matched_to": "몽골",
+    "score": 90.0
+  },
+  "미국령사모아": {
+    "iso2": "WS",
+    "matched_to": "사모아",
+    "score": 90.0
+  },
+  "미얀마": {
+    "iso2": "MM",
+    "matched_to": "미얀마",
+    "score": 100.0
+  },
+  "바누아투": {
+    "iso2": "VU",
+    "matched_to": "바누아투",
+    "score": 100.0
+  },
+  "바레인": {
+    "iso2": "BH",
+    "matched_to": "바레인",
+    "score": 100.0
+  },
+  "바베이도스": {
+    "iso2": "BB",
+    "matched_to": "바베이도스",
+    "score": 100.0
+  },
+  "바하마": {
+    "iso2": "BS",
+    "matched_to": "바하마",
+    "score": 100.0
+  },
+  "방글라데시": {
+    "iso2": "BD",
+    "matched_to": "방글라데시",
+    "score": 100.0
+  },
+  "베냉": {
+    "iso2": "BJ",
+    "matched_to": "베냉",
+    "score": 100.0
+  },
+  "베네수엘라": {
+    "iso2": "VE",
+    "matched_to": "베네수엘라볼리바르",
+    "score": 90.0
+  },
+  "베트남": {
+    "iso2": "VN",
+    "matched_to": "베트남",
+    "score": 100.0
+  },
+  "벨기에": {
+    "iso2": "BE",
+    "matched_to": "벨기에",
+    "score": 100.0
+  },
+  "벨리즈": {
+    "iso2": "BZ",
+    "matched_to": "벨리즈",
+    "score": 100.0
+  },
+  "보스니아-헤르체고비나": {
+    "iso2": "BA",
+    "matched_to": "보스니아헤르체고비나",
+    "score": 95.2
+  },
+  "보스니아헤르체고비나": {
+    "iso2": "BA",
+    "matched_to": "보스니아헤르체고비나",
+    "score": 100.0
+  },
+  "보츠와나": {
+    "iso2": "BW",
+    "matched_to": "보츠와나",
+    "score": 100.0
+  },
+  "볼리비아": {
+    "iso2": "BO",
+    "matched_to": "볼리비아",
+    "score": 100.0
+  },
+  "부룬디": {
+    "iso2": "BI",
+    "matched_to": "부룬디",
+    "score": 100.0
+  },
+  "부르키나파소": {
+    "iso2": "BF",
+    "matched_to": "부르키나파소",
+    "score": 100.0
+  },
+  "부탄": {
+    "iso2": "BT",
+    "matched_to": "부탄",
+    "score": 100.0
+  },
+  "불가리아": {
+    "iso2": "BG",
+    "matched_to": "불가리아",
+    "score": 100.0
+  },
+  "브라질": {
+    "iso2": "BR",
+    "matched_to": "브라질",
+    "score": 100.0
+  },
+  "브루나이": {
+    "iso2": "BN",
+    "matched_to": "브루나이",
+    "score": 100.0
+  },
+  "사모아": {
+    "iso2": "WS",
+    "matched_to": "사모아",
+    "score": 100.0
+  },
+  "사우디아라비아": {
+    "iso2": "SA",
+    "matched_to": "사우디아라비아",
+    "score": 100.0
+  },
+  "사이프러스": {
+    "iso2": "CY",
+    "matched_to": "사이프러스",
+    "score": 100.0
+  },
+  "상투메프린시페": {
+    "iso2": "ST",
+    "matched_to": "상투메프린시페",
+    "score": 100.0
+  },
+  "세네갈": {
+    "iso2": "SN",
+    "matched_to": "세네갈",
+    "score": 100.0
+  },
+  "세르비아": {
+    "iso2": "RS",
+    "matched_to": "세르비아",
+    "score": 100.0
+  },
+  "세르비아몬테네그로": {
+    "iso2": "ME",
+    "matched_to": "몬테네그로",
+    "score": 90.0
+  },
+  "세이셸": {
+    "iso2": "SC",
+    "matched_to": "세이셸",
+    "score": 100.0
+  },
+  "세인트루시아": {
+    "iso2": "LC",
+    "matched_to": "세인트루시아",
+    "score": 100.0
+  },
+  "세인트빈센트": {
+    "iso2": "VC",
+    "matched_to": "세인트빈센트그레나딘",
+    "score": 90.0
+  },
+  "소말리아": {
+    "iso2": "SO",
+    "matched_to": "소말리아",
+    "score": 100.0
+  },
+  "솔로몬제도": {
+    "iso2": "SB",
+    "matched_to": "솔로몬제도",
+    "score": 100.0
+  },
+  "수단": {
+    "iso2": "SD",
+    "matched_to": "수단",
+    "score": 100.0
+  },
+  "수리남": {
+    "iso2": "SR",
+    "matched_to": "수리남",
+    "score": 100.0
+  },
+  "스리랑카": {
+    "iso2": "LK",
+    "matched_to": "스리랑카",
+    "score": 100.0
+  },
+  "스웨덴": {
+    "iso2": "SE",
+    "matched_to": "스웨덴",
+    "score": 100.0
+  },
+  "스위스": {
+    "iso2": "CH",
+    "matched_to": "스위스",
+    "score": 100.0
+  },
+  "스페인": {
+    "iso2": "ES",
+    "matched_to": "스페인",
+    "score": 100.0
+  },
+  "슬로바키아": {
+    "iso2": "SK",
+    "matched_to": "슬로바키아",
+    "score": 100.0
+  },
+  "슬로베니아": {
+    "iso2": "SI",
+    "matched_to": "슬로베니아",
+    "score": 100.0
+  },
+  "시리아": {
+    "iso2": "SY",
+    "matched_to": "시리아",
+    "score": 100.0
+  },
+  "시에라리온": {
+    "iso2": "SL",
+    "matched_to": "시에라리온",
+    "score": 100.0
+  },
+  "싱가포르": {
+    "iso2": "SG",
+    "matched_to": "싱가포르",
+    "score": 100.0
+  },
+  "아랍에미리트": {
+    "iso2": "AE",
+    "matched_to": "아랍에미리트",
+    "score": 100.0
+  },
+  "아루바": {
+    "iso2": "AW",
+    "matched_to": "아루바",
+    "score": 100.0
+  },
+  "아르메니아": {
+    "iso2": "AM",
+    "matched_to": "아르메니아",
+    "score": 100.0
+  },
+  "아르헨티나": {
+    "iso2": "AR",
+    "matched_to": "아르헨티나",
+    "score": 100.0
+  },
+  "아이티": {
+    "iso2": "HT",
+    "matched_to": "아이티",
+    "score": 100.0
+  },
+  "아일랜드": {
+    "iso2": "IE",
+    "matched_to": "아일랜드",
+    "score": 100.0
+  },
+  "아제르바이잔": {
+    "iso2": "AZ",
+    "matched_to": "아제르바이잔",
+    "score": 100.0
+  },
+  "아프가니스탄": {
+    "iso2": "AF",
+    "matched_to": "아프가니스탄",
+    "score": 100.0
+  },
+  "알바니아": {
+    "iso2": "AL",
+    "matched_to": "알바니아",
+    "score": 100.0
+  },
+  "알제리": {
+    "iso2": "DZ",
+    "matched_to": "알제리",
+    "score": 100.0
+  },
+  "앙골라": {
+    "iso2": "AO",
+    "matched_to": "앙골라",
+    "score": 100.0
+  },
+  "에리트레아": {
+    "iso2": "ER",
+    "matched_to": "에리트레아",
+    "score": 100.0
+  },
+  "에스와티니": {
+    "iso2": "SZ",
+    "matched_to": "에스와티니",
+    "score": 100.0
+  },
+  "에스토니아": {
+    "iso2": "EE",
+    "matched_to": "에스토니아",
+    "score": 100.0
+  },
+  "에콰도르": {
+    "iso2": "EC",
+    "matched_to": "에콰도르",
+    "score": 100.0
+  },
+  "에티오피아": {
+    "iso2": "ET",
+    "matched_to": "에티오피아",
+    "score": 100.0
+  },
+  "엘살바도르": {
+    "iso2": "SV",
+    "matched_to": "엘살바도르",
+    "score": 100.0
+  },
+  "영국": {
+    "iso2": "GB",
+    "matched_to": "영국",
+    "score": 100.0
+  },
+  "예멘": {
+    "iso2": "YE",
+    "matched_to": "예멘",
+    "score": 100.0
+  },
+  "오만": {
+    "iso2": "OM",
+    "matched_to": "오만",
+    "score": 100.0
+  },
+  "오스트리아": {
+    "iso2": "AT",
+    "matched_to": "오스트리아",
+    "score": 100.0
+  },
+  "온두라스": {
+    "iso2": "HN",
+    "matched_to": "온두라스",
+    "score": 100.0
+  },
+  "요르단": {
+    "iso2": "JO",
+    "matched_to": "요르단",
+    "score": 100.0
+  },
+  "우간다": {
+    "iso2": "UG",
+    "matched_to": "우간다",
+    "score": 100.0
+  },
+  "우루과이": {
+    "iso2": "UY",
+    "matched_to": "우루과이",
+    "score": 100.0
+  },
+  "우즈베키스탄": {
+    "iso2": "UZ",
+    "matched_to": "우즈베키스탄",
+    "score": 100.0
+  },
+  "우크라이나": {
+    "iso2": "UA",
+    "matched_to": "우크라이나",
+    "score": 100.0
+  },
+  "이라크": {
+    "iso2": "IQ",
+    "matched_to": "이라크",
+    "score": 100.0
+  },
+  "이란": {
+    "iso2": "IR",
+    "matched_to": "이란",
+    "score": 100.0
+  },
+  "이스라엘": {
+    "iso2": "IL",
+    "matched_to": "이스라엘",
+    "score": 100.0
+  },
+  "이집트": {
+    "iso2": "EG",
+    "matched_to": "이집트",
+    "score": 100.0
+  },
+  "이탈리아": {
+    "iso2": "IT",
+    "matched_to": "이탈리아",
+    "score": 100.0
+  },
+  "인도": {
+    "iso2": "IN",
+    "matched_to": "인도",
+    "score": 100.0
+  },
+  "인도네시아": {
+    "iso2": "ID",
+    "matched_to": "인도네시아",
+    "score": 100.0
+  },
+  "일본": {
+    "iso2": "JP",
+    "matched_to": "일본",
+    "score": 100.0
+  },
+  "자메이카": {
+    "iso2": "JM",
+    "matched_to": "자메이카",
+    "score": 100.0
+  },
+  "잠비아": {
+    "iso2": "ZM",
+    "matched_to": "잠비아",
+    "score": 100.0
+  },
+  "적도기니": {
+    "iso2": "GQ",
+    "matched_to": "적도기니",
+    "score": 100.0
+  },
+  "조지아": {
+    "iso2": "GE",
+    "matched_to": "조지아",
+    "score": 100.0
+  },
+  "중국": {
+    "iso2": "CN",
+    "matched_to": "중국",
+    "score": 100.0
+  },
+  "중앙아프리카": {
+    "iso2": "CF",
+    "matched_to": "중앙아프리카",
+    "score": 100.0
+  },
+  "지부티": {
+    "iso2": "DJ",
+    "matched_to": "지부티",
+    "score": 100.0
+  },
+  "짐바브웨": {
+    "iso2": "ZW",
+    "matched_to": "짐바브웨",
+    "score": 100.0
+  },
+  "차드": {
+    "iso2": "TD",
+    "matched_to": "차드",
+    "score": 100.0
+  },
+  "체코": {
+    "iso2": "CZ",
+    "matched_to": "체코",
+    "score": 100.0
+  },
+  "칠레": {
+    "iso2": "CL",
+    "matched_to": "칠레",
+    "score": 100.0
+  },
+  "카메룬": {
+    "iso2": "CM",
+    "matched_to": "카메룬",
+    "score": 100.0
+  },
+  "카보베르데": {
+    "iso2": "CV",
+    "matched_to": "카보베르데",
+    "score": 100.0
+  },
+  "카자흐스탄": {
+    "iso2": "KZ",
+    "matched_to": "카자흐스탄",
+    "score": 100.0
+  },
+  "카타르": {
+    "iso2": "QA",
+    "matched_to": "카타르",
+    "score": 100.0
+  },
+  "캄보디아": {
+    "iso2": "KH",
+    "matched_to": "캄보디아",
+    "score": 100.0
+  },
+  "캐나다": {
+    "iso2": "CA",
+    "matched_to": "캐나다",
+    "score": 100.0
+  },
+  "케냐": {
+    "iso2": "KE",
+    "matched_to": "케냐",
+    "score": 100.0
+  },
+  "코모로": {
+    "iso2": "KM",
+    "matched_to": "코모로",
+    "score": 100.0
+  },
+  "코스타리카": {
+    "iso2": "CR",
+    "matched_to": "코스타리카",
+    "score": 100.0
+  },
+  "코트디부아르": {
+    "iso2": "CI",
+    "matched_to": "코트디부아르",
+    "score": 100.0
+  },
+  "콜롬비아": {
+    "iso2": "CO",
+    "matched_to": "콜롬비아",
+    "score": 100.0
+  },
+  "콩고 민주공화국": {
+    "iso2": "CD",
+    "matched_to": "콩고민주공화국",
+    "score": 93.3
+  },
+  "콩고공화국": {
+    "iso2": "CG",
+    "matched_to": "콩고",
+    "score": 90.0
+  },
+  "콩고민주공화국": {
+    "iso2": "CD",
+    "matched_to": "콩고민주공화국",
+    "score": 100.0
+  },
+  "쿠바": {
+    "iso2": "CU",
+    "matched_to": "쿠바",
+    "score": 100.0
+  },
+  "쿠웨이트": {
+    "iso2": "KW",
+    "matched_to": "쿠웨이트",
+    "score": 100.0
+  },
+  "쿡제도": {
+    "iso2": "CK",
+    "matched_to": "쿡제도",
+    "score": 100.0
+  },
+  "크로아티아": {
+    "iso2": "HR",
+    "matched_to": "크로아티아",
+    "score": 100.0
+  },
+  "키르기즈": {
+    "iso2": "KG",
+    "matched_to": "키르기즈공화국",
+    "score": 90.0
+  },
+  "키르기즈공화국": {
+    "iso2": "KG",
+    "matched_to": "키르기즈공화국",
+    "score": 100.0
+  },
+  "키리바시": {
+    "iso2": "KI",
+    "matched_to": "키리바시",
+    "score": 100.0
+  },
+  "타지키스탄": {
+    "iso2": "TJ",
+    "matched_to": "타지키스탄",
+    "score": 100.0
+  },
+  "탄자니아": {
+    "iso2": "TZ",
+    "matched_to": "탄자니아",
+    "score": 100.0
+  },
+  "태국": {
+    "iso2": "TH",
+    "matched_to": "태국",
+    "score": 100.0
+  },
+  "토고": {
+    "iso2": "TG",
+    "matched_to": "토고",
+    "score": 100.0
+  },
+  "통가": {
+    "iso2": "TO",
+    "matched_to": "통가",
+    "score": 100.0
+  },
+  "투르크메니스탄": {
+    "iso2": "TM",
+    "matched_to": "투르크메니스탄",
+    "score": 100.0
+  },
+  "투발루": {
+    "iso2": "TV",
+    "matched_to": "투발루",
+    "score": 100.0
+  },
+  "튀니지": {
+    "iso2": "TN",
+    "matched_to": "튀니지",
+    "score": 100.0
+  },
+  "트리니다드토바고": {
+    "iso2": "TT",
+    "matched_to": "트리니다드토바고",
+    "score": 100.0
+  },
+  "파나마": {
+    "iso2": "PA",
+    "matched_to": "파나마",
+    "score": 100.0
+  },
+  "파라과이": {
+    "iso2": "PY",
+    "matched_to": "파라과이",
+    "score": 100.0
+  },
+  "파키스탄": {
+    "iso2": "PK",
+    "matched_to": "파키스탄",
+    "score": 100.0
+  },
+  "파푸아뉴기니": {
+    "iso2": "PG",
+    "matched_to": "파푸아뉴기니",
+    "score": 100.0
+  },
+  "팔라우": {
+    "iso2": "PW",
+    "matched_to": "팔라우",
+    "score": 100.0
+  },
+  "팔레스타인": {
+    "iso2": "PS",
+    "matched_to": "팔레스타인",
+    "score": 100.0
+  },
+  "페루": {
+    "iso2": "PE",
+    "matched_to": "페루",
+    "score": 100.0
+  },
+  "포르투갈": {
+    "iso2": "PT",
+    "matched_to": "포르투갈",
+    "score": 100.0
+  },
+  "폴란드": {
+    "iso2": "PL",
+    "matched_to": "폴란드",
+    "score": 100.0
+  },
+  "프랑스": {
+    "iso2": "FR",
+    "matched_to": "프랑스",
+    "score": 100.0
+  },
+  "피지": {
+    "iso2": "FJ",
+    "matched_to": "피지",
+    "score": 100.0
+  },
+  "핀란드": {
+    "iso2": "FI",
+    "matched_to": "핀란드",
+    "score": 100.0
+  },
+  "필리핀": {
+    "iso2": "PH",
+    "matched_to": "필리핀",
+    "score": 100.0
+  },
+  "헝가리": {
+    "iso2": "HU",
+    "matched_to": "헝가리",
+    "score": 100.0
+  },
+  "호주": {
+    "iso2": "AU",
+    "matched_to": "호주",
+    "score": 100.0
+  },
+  "홍콩": {
+    "iso2": "HK",
+    "matched_to": "홍콩",
+    "score": 100.0
+  },
+  "몬트세라트": {
+    "iso2": "MS",
+    "matched_to": "몬트세랫",
+    "score": 66.7,
+    "note": "수기 구출"
+  },
+  "미국": {
+    "iso2": "US",
+    "matched_to": "미합중국",
+    "score": 66.7,
+    "note": "수기 구출"
+  },
+  "안티구아바부다": {
+    "iso2": "AG",
+    "matched_to": "앤티가바부다",
+    "score": 61.5,
+    "note": "수기 구출"
+  },
+  "키르기스스탄": {
+    "iso2": "KG",
+    "matched_to": "키르기즈공화국",
+    "score": 100.0,
+    "note": "수기 추가 - 기준표엔 '키르기즈공화국'으로 등재"
+  },
+  "남아공": {
+    "iso2": "ZA",
+    "matched_to": "남아프리카공화국",
+    "note": "구어체 별칭 수동 추가"
+  }
+}
