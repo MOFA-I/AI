@@ -14,6 +14,7 @@ Agent3 - 데이터 기반 정량 분석 엔진 (pandas + scikit-learn)
 """
 
 from __future__ import annotations
+import json
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler
@@ -22,8 +23,6 @@ from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 
 import config
-from data.dummy_data import generate_countries, ODA_FIELDS, OPPORTUNITY_FIELDS
-
 
 class Agent3Analyzer:
     """정량 분석 파이프라인. raw dict -> DataFrame -> 4대 지표 -> (선택)군집/PCA"""
@@ -33,138 +32,93 @@ class Agent3Analyzer:
         self.countries = list(raw_data.keys())
         self.df = self._build_base_dataframe()
 
+    def _parse_travel_level(self, warning_level: str | None) -> float:
+        # 문자열 경보 레벨을 정량 점수로 변환 (예: '1단계' -> 1.0, 없으면 0.0)
+        if not warning_level:
+            return 0.0
+        try:
+            # 문자열에서 숫자만 추출 시도 (예: "2단계" -> 2.0)
+            digits = "".join([c for c in str(warning_level) if c.isdigit()])
+            return float(digits) if digits else 0.0
+        except Exception:
+            return 0.0
+
+    def _parse_diplomatic_year(self, diplomatic_data: dict | None) -> float:
+        # 외교 관계 원본 데이터 등에서 수교 연도를 추출
+        if not diplomatic_data or not isinstance(diplomatic_data, dict):
+            return 2026.0
+        # Agent2 원본 응답 구조에 맞게 커스텀 파싱 (예: "수교일자": "1992-12-22" -> 1992)
+        # 아래는 예시 필드명이며 실제 데이터 구조에 맞게 매핑 필요합니다.
+        for key, val in diplomatic_data.items():
+            if "연도" in key or "수교" in key:
+                digits = "".join([c for c in str(val) if c.isdigit()][:4])
+                if len(digits) == 4:
+                    return float(digits)
+      
+
+    def _safe_minmax_scale(self, series: pd.Series) -> np.ndarray:
+        # 수학적 에러 방지: 데이터가 모두 같거나 부족해서 분모가 0이 되는 현상 방지
+        if series.nunique() <= 1:
+            # 모든 값이 같으면 중간값인 50.0으로 통일하거나 원래 값이 0이면 0으로 반환
+            return np.full(series.shape, 50.0) if series.max() != 0 else np.zeros(series.shape)
+        
+        scaler = MinMaxScaler((0, 100))
+        return scaler.fit_transform(series.to_frame()).flatten()
     def _build_base_dataframe(self) -> pd.DataFrame:
-        rows = []
-        for country, v in self.raw.items():
-            row = {
-                "country": country,
-                "travel_advisory_level": v["travel_advisory_level"],
-                "safety_notice_count_monthly": v["safety_notice_count_monthly"],
-                "political_risk_keyword_score": v["political_risk_keyword_score"],
-                "trade_volume_usd_million": v["trade_volume_usd_million"],
-                "oda_cumulative_usd_million": v["oda_cumulative_usd_million"],
-                "expat_count": v["expat_count"],
-                "diplomatic_year": v["diplomatic_year"],
-            }
-            for f in ODA_FIELDS:
-                row[f"oda_freq__{f}"] = v["koica_oda_field_freq"][f]
-            for f in OPPORTUNITY_FIELDS:
-                row[f"industry__{f}"] = v["industry_status"][f]
-                row[f"keyword__{f}"] = v["keyword_relevance"][f]
-                row[f"history__{f}"] = v["cooperation_history_score"][f]
-            rows.append(row)
-        return pd.DataFrame(rows).set_index("country")
+        country_mapping = getattr(self, "country_mapping", {}) 
 
-    def calc_risk_score(self) -> pd.Series:
-        df = self.df
-        w = config.RISK_WEIGHTS
-        advisory_scaled = MinMaxScaler((0, 100)).fit_transform(df[["travel_advisory_level"]]).flatten()
-        notice_scaled = MinMaxScaler((0, 100)).fit_transform(df[["safety_notice_count_monthly"]]).flatten()
-        keyword_score = df["political_risk_keyword_score"].to_numpy()
-        risk = (
-            advisory_scaled * w["travel_advisory"]
-            + notice_scaled * w["safety_notice"]
-            + keyword_score * w["political_keyword"]
-        )
-        return pd.Series(np.round(risk, 2), index=df.index, name="risk_score")
+        aggregated_rows = {}
+        for input_key, v in self.raw.items():
+            # 1. Agent2 매핑 딕셔너리에서 표준 국가명 찾기
+            mapping_info = country_mapping.get(input_key, {})
+            standard_country = mapping_info.get("matched_to", input_key) # 없으면 본래 키 유지
+            
+            # 2. 나미비아 같은 iso2 NaN 값 처리
+            iso2 = mapping_info.get("iso2")
+            iso2_str = "" if pd.isna(iso2) else str(iso2)
 
-    def calc_cooperation_index(self) -> pd.DataFrame:
-        df = self.df
-        w = config.COOPERATION_WEIGHTS
-        scaler = MinMaxScaler((0, 100))
-        trade_s = scaler.fit_transform(df[["trade_volume_usd_million"]]).flatten()
-        oda_s = scaler.fit_transform(df[["oda_cumulative_usd_million"]]).flatten()
-        expat_s = scaler.fit_transform(df[["expat_count"]]).flatten()
-        year_s = scaler.fit_transform(-df[["diplomatic_year"]]).flatten()  # 오래될수록 가점
+            # 기존 데이터 추출 로직
+            security = v.get("security_environment", {})
+            oda = v.get("oda", {})
+            oda_cum_list = oda.get("cumulative", {}).get("data")
+            oda_cum_usd = 0.0
+            if oda_cum_list and isinstance(oda_cum_list, list) and len(oda_cum_list) > 0:
+                oda_cum_usd = float(oda_cum_list[0].get("달러", 0))
 
-        score = (
-            trade_s * w["trade_volume"]
-            + oda_s * w["oda_cumulative"]
-            + expat_s * w["expat_count"]
-            + year_s * w["diplomatic_year"]
-        )
-        score = pd.Series(np.round(score, 2), index=df.index, name="score")
+            trade_data = v.get("trade", {}).get("data", {})
+            trade_volume = float(trade_data.get("trade_volume", 0.0)) if isinstance(trade_data, dict) else 0.0
 
-        grade = pd.qcut(
-            score.rank(method="first"), config.COOPERATION_GRADE_COUNT,
-            labels=list(range(1, config.COOPERATION_GRADE_COUNT + 1))
-        ).astype(int)
-        grade.name = "grade"
-        return pd.concat([score, grade], axis=1)
+            # 3. 표준 국가명 기준으로 데이터를 수집할 딕셔너리 생성 및 누적
+            if standard_country not in aggregated_rows:
+                aggregated_rows[standard_country] = {
+                    "country": standard_country,
+                    "iso2": iso2_str,
+                    "travel_advisory_level": self._parse_travel_level(v.get("travel_warning_level")),
+                    "safety_notice_count_monthly": len(v.get("recent_safety_notices", [])),
+                    "political_risk_keyword_score": float(security.get("suicide_death_rate", 0.0)),
+                    "trade_volume_usd_million": trade_volume,
+                    "oda_cumulative_usd_million": oda_cum_usd / 1_000_000.0,
+                    "expat_count": float(v.get("overseas_presence", {}).get("data", {}).get("org_count", 0) or 0),
+                    "diplomatic_year": self._parse_diplomatic_year(v.get("diplomatic", {}).get("data")),
+                }
+                for f in ODA_FIELDS:
+                    aggregated_rows[standard_country][f"oda_freq__{f}"] = float(v.get("koica_oda_field_freq", {}).get(f, 0.0))
+                for f in OPPORTUNITY_FIELDS:
+                    aggregated_rows[standard_country][f"industry__{f}"] = float(v.get("industry_status", {}).get(f, 0.0))
+                    aggregated_rows[standard_country][f"keyword__{f}"] = float(v.get("keyword_relevance", {}).get(f, 0.0))
+                    aggregated_rows[standard_country][f"history__{f}"] = float(v.get("cooperation_history_score", {}).get(f, 0.0))
+            else:
+                # 이미 표준 국가명이 등록되어 있다면(예: 가나대학교 이후 가나 데이터 처리 시) 수치형 데이터 가산/최대값 갱신
+                existing = aggregated_rows[standard_country]
+                existing["trade_volume_usd_million"] += trade_volume
+                existing["oda_cumulative_usd_million"] += (oda_cum_usd / 1_000_000.0)
+                existing["expat_count"] += float(v.get("overseas_presence", {}).get("data", {}).get("org_count", 0) or 0)
+                # 경보 레벨이나 위험도는 더 높은(위험한) 값을 보수적으로 선택
+                existing["travel_advisory_level"] = max(existing["travel_advisory_level"], self._parse_travel_level(v.get("travel_warning_level")))
+                existing["safety_notice_count_monthly"] += len(v.get("recent_safety_notices", []))
 
-    def calc_opportunity_score(self) -> pd.DataFrame:
-        w = config.OPPORTUNITY_WEIGHTS
-        df = self.df
-        scaler = MinMaxScaler((0, 100))
-        result = pd.DataFrame(index=df.index)
-
-        for opp_field in OPPORTUNITY_FIELDS:
-            oda_field = next(k for k, v in config.ODA_TO_OPPORTUNITY.items() if v == opp_field)
-            oda_col = f"oda_freq__{oda_field}"
-            oda_norm = scaler.fit_transform(df[[oda_col]]).flatten()
-            industry_col = df[f"industry__{opp_field}"].to_numpy()
-            keyword_col = df[f"keyword__{opp_field}"].to_numpy()
-            history_col = df[f"history__{opp_field}"].to_numpy()
-            total = (
-                oda_norm * w["oda_freq"]
-                + industry_col * w["industry"]
-                + keyword_col * w["keyword"]
-                + history_col * w["history"]
-            )
-            result[opp_field] = np.round(total, 1)
-        return result
-
-    def opportunity_ranking(self, opp_df: pd.DataFrame) -> dict:
-        return {
-            country: list(row.sort_values(ascending=False).items())
-            for country, row in opp_df.iterrows()
-        }
-
-    def build_feature_matrix(self, risk, coop, opp) -> pd.DataFrame:
-        return pd.concat([risk, coop["score"].rename("coop_score"), opp], axis=1)
-
-    def similarity_matrix(self, feature_df: pd.DataFrame) -> pd.DataFrame:
-        scaled = MinMaxScaler().fit_transform(feature_df.to_numpy())
-        sim = cosine_similarity(scaled)
-        return pd.DataFrame(sim, index=feature_df.index, columns=feature_df.index)
-
-    def recommend_similar(self, sim_matrix: pd.DataFrame, target: str, top_n: int = None):
-        top_n = top_n or config.SIMILARITY_TOP_N
-        if target not in sim_matrix.index:
-            raise ValueError(f"'{target}' 은(는) 데이터에 없습니다.")
-        s = sim_matrix.loc[target].drop(target).sort_values(ascending=False)
-        return s.head(top_n)
-
-    def cluster_countries(self, feature_df: pd.DataFrame) -> pd.Series:
-        scaled = MinMaxScaler().fit_transform(feature_df.to_numpy())
-        km = KMeans(n_clusters=config.CLUSTER_N, random_state=config.RANDOM_STATE, n_init=10)
-        labels = km.fit_predict(scaled)
-        return pd.Series(labels, index=feature_df.index, name="cluster")
-
-    def pca_2d(self, feature_df: pd.DataFrame) -> pd.DataFrame:
-        scaled = MinMaxScaler().fit_transform(feature_df.to_numpy())
-        coords = PCA(n_components=2, random_state=config.RANDOM_STATE).fit_transform(scaled)
-        return pd.DataFrame(coords, index=feature_df.index, columns=["pc1", "pc2"])
-
-    def run_all(self):
-        risk = self.calc_risk_score()
-        coop = self.calc_cooperation_index()
-        opp = self.calc_opportunity_score()
-        opp_rank = self.opportunity_ranking(opp)
-        feature_df = self.build_feature_matrix(risk, coop, opp)
-        sim = self.similarity_matrix(feature_df)
-        clusters = self.cluster_countries(feature_df)
-        pca_coords = self.pca_2d(feature_df)
-        return {
-            "risk_score": risk,
-            "cooperation_index": coop,
-            "opportunity_score": opp,
-            "opportunity_ranking": opp_rank,
-            "feature_matrix": feature_df,
-            "similarity_matrix": sim,
-            "cluster": clusters,
-            "pca_coords": pca_coords,
-        }
+        # 4. 딕셔너리를 DataFrame으로 변환 후 Index 지정
+        return pd.DataFrame(list(aggregated_rows.values())).set_index("country")
 
     # ------------------------------------------------------------------
     # 1) 위험도 점수
@@ -283,10 +237,12 @@ class Agent3Analyzer:
     # ------------------------------------------------------------------
     def pca_2d(self, feature_df: pd.DataFrame) -> pd.DataFrame:
         scaled = MinMaxScaler().fit_transform(feature_df.to_numpy())
-        coords = PCA(n_components=2, random_state=config.RANDOM_STATE).fit_transform(scaled)
-        return pd.DataFrame(coords, index=feature_df.index, columns=["pc1", "pc2"])
+        n_components = min(2, scaled.shape[1], scaled.shape[0])
+        pca = PCA(n_components=n_components, random_state=config.RANDOM_STATE)
+        coords = pca.fit_transform(scaled)
+        cols = [f"pc{i+1}" for i in range(n_components)]
+        return pd.DataFrame(coords, index=feature_df.index, columns=cols)
 
-    # ------------------------------------------------------------------
     def run_all(self):
         risk = self.calc_risk_score()
         coop = self.calc_cooperation_index()
@@ -311,36 +267,7 @@ class Agent3Analyzer:
 
 
 def analyze(reference_data: dict, target_countries: list | None = None) -> dict:
-    """
-    Orchestrator / Agent2 / Agent4가 호출하는 공개 인터페이스.
-
-    Args:
-        reference_data: 비교 대상이 되는 '전체' 국가 DB
-            (data.dummy_data.generate_countries()와 동일한 스키마).
-            정규화·유사도·군집 계산은 비교군이 있어야 의미가 있으므로,
-            사용자가 특정 국가 하나만 물어봤더라도 이 인자에는 항상
-            전체(혹은 최소 여러 개) 국가 데이터를 넣어야 한다.
-        target_countries: 사용자가 실제로 질문한 국가 리스트 (예: ["베트남"]).
-            None이면 reference_data의 모든 국가에 대해 결과를 반환한다.
-            (Orchestrator가 Issue Analyzer에서 뽑아낸 국가 리스트를 여기 그대로 넣으면 됨)
-
-    Returns:
-        JSON 직렬화 가능한 dict. Agent4가 바로 report 생성에 쓸 수 있는 형태.
-        {
-          "베트남": {
-              "risk_score": 42.3,
-              "cooperation_index": {"score": 61.2, "grade": 4},
-              "opportunity_score": {"AI": 55.6, "스마트팜": 48.2, ...},
-              "opportunity_ranking": [["AI", 55.6], ["의료", 50.1], ...],
-              "cluster": 0,
-              "similar_countries": [["몽골", 0.83], ["필리핀", 0.80], ...]
-          },
-          ...
-        }
-
-    주의: target_countries에 reference_data에 없는 국가명이 들어오면 결과에서 조용히 제외된다.
-          (Orchestrator/Agent2 단계에서 국가명 표준화·존재 여부 검증을 먼저 해두는 것을 권장)
-    """
+    
     agent3 = Agent3Analyzer(reference_data)
     out = agent3.run_all()
 
