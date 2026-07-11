@@ -8,11 +8,11 @@ from typing import Optional
 from .schemas import Agent2Data, Agent3Data, EvidenceEntry
 
 _SRC_LABEL = {
-    "diplomatic": "외교관계 API",
+    "relation": "외교관계 API",
     "trade": "무역관계 API",
-    "oda_cumulative": "KOICA ODA 누적지원",
-    "oda_yearly": "KOICA ODA 연도별",
-    "overseas_presence": "해외진출현황",
+    "koica_country_support_cumulative": "KOICA ODA 누적지원",
+    "koica_country_support_yearly": "KOICA ODA 연도별",
+    "overseas_org": "해외진출현황 CSV",
 }
 
 

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""test_pipeline.py — v1.2 E2E: Agent2 확정 봉투 스키마 + failed/empty 케이스."""
+"""test_pipeline.py — v1.2 E2E: Agent2 실구현 봉투 스키마 + loader records 형태."""
 import json
 from report_generator import Agent4ReportGenerator, Agent4Input
 from adapters import adapt_agent1, adapt_agent2, adapt_agent3
@@ -28,36 +28,44 @@ agent1_raw = {
                    {"date": "2026-06-28", "event": "총리, 경제 개혁안 발표"}]},
 }
 
-# 3) agent2: 확정 봉투 스키마 {status, data, error}
-#    베트남 — oda.cumulative ok, oda.yearly ok, overseas_presence empty
-#    일본   — oda.cumulative failed, oda.yearly failed, overseas_presence ok
+# 3) agent2: 실구현 봉투 스키마 (collector.py 실 출력 형태)
+#    - oda.cumulative/yearly.data = loader DataFrame → records (raw USD)
+#    - overseas_presence.data = {"status":…, "orgs":[…], "org_count":N}
+#    - _evidence source 이름 = selector.py SOURCE_FUNCTIONS 키 그대로
+#    베트남 — oda ok, overseas_presence empty
+#    일본   — oda cumulative/yearly failed, overseas_presence ok
 agent2_raw = {
     "베트남": {
         "country_nm": "베트남",
         "iso2": "VN",
-        "queried_at": "2026-07-10T12:00:00",
+        "queried_at": "2026-07-11T03:00:00+00:00",
         "diplomatic": {
             "status": "ok",
-            "data": {"established_year": 1992, "expat_count": 156000},
+            "data": {"response": {"body": {"items": {"item": {}}}}},
             "error": None,
         },
         "trade": {
             "status": "ok",
-            "data": {"volume_usd_million": 79400},
+            "data": {"response": {"body": {"items": {"item": {}}}}},
             "error": None,
         },
         "oda": {
             "cumulative": {
                 "status": "ok",
-                "data": {"usd_million": 2100.5},
+                # loader DataFrame.to_dict("records") 형태 — 단위: raw USD
+                "data": [{"국가명": "베트남", "원": 654321000000.0, "달러": 560857532}],
                 "error": None,
             },
             "yearly": {
                 "status": "ok",
-                "data": {"by_year": {
-                    "2020": 180.2, "2021": 210.5, "2022": 195.0,
-                    "2023": 240.8, "2024": 260.1,
-                }},
+                # loader DataFrame.to_dict("records") 형태 — 단위: raw USD
+                "data": [
+                    {"연도": 2020, "원": 195000000000.0, "달러": 180200000},
+                    {"연도": 2021, "원": 228000000000.0, "달러": 210500000},
+                    {"연도": 2022, "원": 211000000000.0, "달러": 195000000},
+                    {"연도": 2023, "원": 260000000000.0, "달러": 240800000},
+                    {"연도": 2024, "원": 281000000000.0, "달러": 260100000},
+                ],
                 "error": None,
             },
         },
@@ -67,23 +75,27 @@ agent2_raw = {
             "error": None,
         },
         "_evidence": {
-            "sources_used": ["diplomatic", "trade", "oda_cumulative", "oda_yearly"],
+            "sources_used": [
+                "relation", "trade",
+                "koica_country_support_cumulative",
+                "koica_country_support_yearly",
+            ],
             "sources_failed": [],
-            "sources_empty": ["overseas_presence"],
+            "sources_empty": ["overseas_org"],
         },
     },
     "일본": {
         "country_nm": "일본",
         "iso2": "JP",
-        "queried_at": "2026-07-10T12:00:00",
+        "queried_at": "2026-07-11T03:00:00+00:00",
         "diplomatic": {
             "status": "ok",
-            "data": {"established_year": 1965, "expat_count": 820000},
+            "data": {"response": {"body": {"items": {"item": {}}}}},
             "error": None,
         },
         "trade": {
             "status": "ok",
-            "data": {"volume_usd_million": 76600},
+            "data": {"response": {"body": {"items": {"item": {}}}}},
             "error": None,
         },
         "oda": {
@@ -100,16 +112,24 @@ agent2_raw = {
         },
         "overseas_presence": {
             "status": "ok",
-            "data": [
-                {"공공기관명": "KOTRA 도쿄무역관", "공공기관유형": "공공기관",
-                 "공공기관진출내용": "무역·투자 지원"},
-                {"공공기관명": "한국관광공사 도쿄지사", "공공기관유형": "공공기관"},
-            ],
+            # _wrap_loader_result: data = loader 반환 dict 그대로
+            "data": {
+                "status": "ok",
+                "country": "일본",
+                "org_count": 2,
+                "orgs": [
+                    {"공공기관유형": "공공기관", "공공기관명": "KOTRA 도쿄무역관"},
+                    {"공공기관유형": "공공기관", "공공기관명": "한국관광공사 도쿄지사"},
+                ],
+            },
             "error": None,
         },
         "_evidence": {
-            "sources_used": ["diplomatic", "trade", "overseas_presence"],
-            "sources_failed": ["oda_cumulative", "oda_yearly"],
+            "sources_used": ["relation", "trade", "overseas_org"],
+            "sources_failed": [
+                "koica_country_support_cumulative",
+                "koica_country_support_yearly",
+            ],
             "sources_empty": [],
         },
     },
@@ -138,14 +158,34 @@ chart_ids = [c["id"] for c in j2["dashboard"]["charts"]]
 assert "opportunity_ranking" not in chart_ids, "opportunity_ranking 차트가 남아 있음"
 assert any("실패→대체" in e["action"] for e in j2["evidence"]), "폴백 투명성 누락"
 
-# 봉투 스키마 파싱 검증
+# agent2 loader records 파싱 검증
 a2_vn = inp_common["agent2"]["베트남"]
 a2_jp = inp_common["agent2"]["일본"]
-assert a2_vn.iso2 == "VN", "iso2 파싱 실패"
-assert a2_vn.oda_cumulative_usd_million == 2100.5, "누적 ODA 파싱 실패"
-assert a2_vn.oda_yearly.get("2024") == 260.1, "연도별 ODA 파싱 실패"
-assert a2_vn.korea_orgs == [], "empty overseas_presence → 빈 목록이어야 함"
-assert a2_jp.oda_cumulative_usd_million is None, "failed 봉투 → None이어야 함"
-assert len(a2_jp.korea_orgs) == 2, "overseas_presence ok → 2건이어야 함"
 
-print("\n✅ v1.2 E2E 통과 — 봉투 스키마, failed/empty 케이스, Opportunity Score 폐지 확인")
+assert a2_vn.iso2 == "VN", "iso2 파싱 실패"
+
+# oda.cumulative: raw USD → /1_000_000 변환
+assert a2_vn.oda_cumulative_usd_million is not None, "누적 ODA None — list 파싱 실패"
+assert abs(a2_vn.oda_cumulative_usd_million - 560.86) < 0.1, \
+    f"누적 ODA 단위 오류: {a2_vn.oda_cumulative_usd_million}"
+
+# oda.yearly: raw USD → /1_000_000 변환
+assert abs(a2_vn.oda_yearly.get("2024", 0) - 260.1) < 0.5, \
+    f"연도별 ODA 단위 오류: {a2_vn.oda_yearly}"
+
+# overseas_presence: empty → 빈 목록
+assert a2_vn.korea_orgs == [], "empty overseas_presence → 빈 목록이어야 함"
+
+# failed 봉투 → None
+assert a2_jp.oda_cumulative_usd_million is None, "failed 봉투 → None이어야 함"
+
+# overseas_presence ok: "orgs" 키 파싱
+assert len(a2_jp.korea_orgs) == 2, \
+    f"overseas_presence ok → 2건이어야 함, 실제: {len(a2_jp.korea_orgs)}"
+
+# evidence 소스 레이블 검증 (실제 source 이름 매핑)
+ev_actions = [e["action"] for e in j2["evidence"]]
+assert any("KOICA ODA 누적지원" in a or "koica_country_support_cumulative" in a
+           for a in ev_actions), "KOICA 누적 소스 레이블 누락"
+
+print("\n✅ v1.2 E2E 통과 — agent2 실구현 형태(loader records, raw USD→백만달러 변환, orgs 키) 검증")

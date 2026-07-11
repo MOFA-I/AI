@@ -61,22 +61,28 @@ def _pick(d: dict, *keys, default=None):
 
 
 def adapt_agent2(raw: dict) -> Agent2Data:
-    """팀원 B collector 결과(봉투 스키마, 국가 1개분) → Agent2Data."""
+    """팀원 B collector 결과(봉투 스키마, 국가 1개분) → Agent2Data.
+
+    loader 반환값(DataFrame→records) 처리:
+    - oda.cumulative.data : [{"국가명":…, "원":…, "달러":…}]  단위: raw USD → /1_000_000
+    - oda.yearly.data     : [{"연도":…, "원":…, "달러":…}]    단위: raw USD → /1_000_000
+    - overseas_presence.data : {"status":…, "orgs":[…], "org_count":…}
+    """
     ev = raw.get("_evidence", {})
 
     diplomatic = _unwrap(raw.get("diplomatic")) or {}
     trade = _unwrap(raw.get("trade")) or {}
     oda = raw.get("oda") or {}
-    oda_cum = _unwrap(oda.get("cumulative")) or {}
-    oda_yr = _unwrap(oda.get("yearly")) or {}
+    oda_cum = _unwrap(oda.get("cumulative"))   # list 또는 dict 또는 None
+    oda_yr = _unwrap(oda.get("yearly"))         # list 또는 dict 또는 None
     presence = _unwrap(raw.get("overseas_presence"))
 
-    # 한국기관 (도시 정보 없음)
+    # 한국기관 — overseas_presence.data = {"orgs": [...], "org_count": N, ...}
     orgs = []
     if isinstance(presence, list):
         olist = presence
     elif isinstance(presence, dict):
-        olist = _pick(presence, "items", default=[])
+        olist = _pick(presence, "orgs", "items", default=[])
     else:
         olist = []
     for o in olist if isinstance(olist, list) else []:
@@ -86,11 +92,19 @@ def adapt_agent2(raw: dict) -> Agent2Data:
                 org_type=_pick(o, "org_type", "공공기관유형"),
                 note=_pick(o, "note", "공공기관진출내용")))
 
-    # 연도별 ODA
-    by_year = _pick(oda_yr, "by_year") or oda_yr
+    # 누적 ODA — list 형태(loader)면 첫 레코드 "달러" 추출 후 /1M 변환
+    if isinstance(oda_cum, list) and oda_cum:
+        raw_usd = _to_float(_pick(oda_cum[0], "달러", "dollar"))
+        oda_cumulative = round(raw_usd / 1_000_000, 2) if raw_usd is not None else None
+    else:
+        oda_cumulative = _to_float(
+            _pick(oda_cum or {}, "usd_million", "cumulative_usd_million"))
+
+    # 연도별 ODA — list 형태면 "달러" 추출 후 /1M 변환, dict 형태면 그대로
+    by_year = _pick(oda_yr or {}, "by_year") or oda_yr
     if isinstance(by_year, list):
         by_year = {str(_pick(r, "year", "연도")):
-                   float(_pick(r, "usd", "달러", default=0) or 0)
+                   round(float(_pick(r, "usd", "달러", default=0) or 0) / 1_000_000, 2)
                    for r in by_year if isinstance(r, dict)}
     yearly = {str(k): float(v) for k, v in (by_year or {}).items()
               if v is not None and str(k).isdigit()}
@@ -100,8 +114,7 @@ def adapt_agent2(raw: dict) -> Agent2Data:
         queried_at=raw.get("queried_at"),
         trade_volume_usd_million=_to_float(
             _pick(trade, "volume_usd_million", "total_usd_million")),
-        oda_cumulative_usd_million=_to_float(
-            _pick(oda_cum, "usd_million", "cumulative_usd_million")),
+        oda_cumulative_usd_million=oda_cumulative,
         oda_yearly=yearly,
         korea_orgs=orgs,
         expat_count=_to_int(_pick(diplomatic, "expat_count")),
