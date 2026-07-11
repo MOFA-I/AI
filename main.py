@@ -30,18 +30,26 @@ class Agent3Analyzer:
     def __init__(self, raw_data: dict):
         self.raw = raw_data
         self.countries = list(raw_data.keys())
+        self.country_mapping = country_mapping if country_mapping else {}
         self.df = self._build_base_dataframe()
 
     def _parse_travel_level(self, warning_level: str | None) -> float:
         # 문자열 경보 레벨을 정량 점수로 변환 (예: '1단계' -> 1.0, 없으면 0.0)
         if not warning_level:
-            return 0.0
-        try:
-            # 문자열에서 숫자만 추출 시도 (예: "2단계" -> 2.0)
-            digits = "".join([c for c in str(warning_level) if c.isdigit()])
-            return float(digits) if digits else 0.0
-        except Exception:
-            return 0.0
+            return config.ADVISORY_DEFAULT_LEVEL
+        warning_level_str = str(warning_level).strip()
+        
+        # 1. 숫자가 들어가 있으면 숫자 추출 (예: "2단계" -> 2.0)
+        digits = "".join([c for c in warning_level_str if c.isdigit()])
+        if digits:
+            return float(digits)
+            
+        # 2. 숫자가 없으면 config의 핵심 키워드가 포함되어 있는지 훑기
+        for keyword, level in config.ADVISORY_KEYWORD_LEVEL.items():
+            if keyword in warning_level_str:
+                return float(level)
+                
+        return config.ADVISORY_DEFAULT_LEVEL
 
     def _parse_diplomatic_year(self, diplomatic_data: dict | None) -> float:
         # 외교 관계 원본 데이터 등에서 수교 연도를 추출
@@ -64,9 +72,8 @@ class Agent3Analyzer:
         
         scaler = MinMaxScaler((0, 100))
         return scaler.fit_transform(series.to_frame()).flatten()
+      
     def _build_base_dataframe(self) -> pd.DataFrame:
-        country_mapping = getattr(self, "country_mapping", {}) 
-
         aggregated_rows = {}
         for input_key, v in self.raw.items():
             # 1. Agent2 매핑 딕셔너리에서 표준 국가명 찾기
@@ -101,9 +108,9 @@ class Agent3Analyzer:
                     "expat_count": float(v.get("overseas_presence", {}).get("data", {}).get("org_count", 0) or 0),
                     "diplomatic_year": self._parse_diplomatic_year(v.get("diplomatic", {}).get("data")),
                 }
-                for f in ODA_FIELDS:
+                for f in config.ODA_FIELDS:
                     aggregated_rows[standard_country][f"oda_freq__{f}"] = float(v.get("koica_oda_field_freq", {}).get(f, 0.0))
-                for f in OPPORTUNITY_FIELDS:
+                for f in config.OPPORTUNITY_FIELDS:
                     aggregated_rows[standard_country][f"industry__{f}"] = float(v.get("industry_status", {}).get(f, 0.0))
                     aggregated_rows[standard_country][f"keyword__{f}"] = float(v.get("keyword_relevance", {}).get(f, 0.0))
                     aggregated_rows[standard_country][f"history__{f}"] = float(v.get("cooperation_history_score", {}).get(f, 0.0))
@@ -212,7 +219,15 @@ class Agent3Analyzer:
         return pd.concat([risk, coop["score"].rename("coop_score"), opp], axis=1)
 
     def similarity_matrix(self, feature_df: pd.DataFrame) -> pd.DataFrame:
-        scaled = MinMaxScaler().fit_transform(feature_df.to_numpy())
+        if feature_df.empty: return pd.DataFrame()
+        
+        # 데이터 왜곡 방지 로그 변환:  로그 스케일링 적용
+        df_log = feature_df.copy()
+        for col in ["trade_volume_usd_million", "oda_cumulative_usd_million"]:
+            if col in df_log.columns:
+                df_log[col] = np.log1p(df_log[col])
+                
+        scaled = MinMaxScaler().fit_transform(df_log.to_numpy())
         sim = cosine_similarity(scaled)
         return pd.DataFrame(sim, index=feature_df.index, columns=feature_df.index)
 
@@ -266,21 +281,46 @@ class Agent3Analyzer:
         }
 
 
-def analyze(reference_data: dict, target_countries: list | None = None) -> dict:
-    
-    agent3 = Agent3Analyzer(reference_data)
+def analyze(reference_data: dict, country_mapping: dict | None = None, target_countries: list | None = None) -> dict:
+    # 1. 클래스 생성할 때 매핑 데이터 잊지 말고 주입!
+    agent3 = Agent3Analyzer(reference_data, country_mapping=country_mapping)
     out = agent3.run_all()
 
-    all_countries = list(reference_data.keys())
-    targets = target_countries if target_countries else all_countries
+    if not out: return {}
+    
+    # 분석 엔진을 통과해 나온 '표준화 완료된 국가 목록'을 기준으로 잡습니다.
+    all_standard_countries = list(agent3.df.index)
+    
+    # 2. 타겟 국가 필터링도 표준 국가명 기준으로 안전하게 변환
+    if target_countries:
+        targets = []
+        for t in target_countries:
+            m_info = (country_mapping or {}).get(t, {})
+            std = m_info.get("matched_to", t)
+            if std in all_standard_countries:
+                targets.append(std)
+    else:
+        targets = all_standard_countries
 
     result = {}
-    for country in targets:
-        if country not in all_countries:
-            continue
+    for country in set(targets):
         similar = agent3.recommend_similar(out["similarity_matrix"], country)
+        raw_v = reference_data.get(country, {}) # 원본 에비던스 백업용
+
+        # 3. 팀원들이 요구한 최종 아웃풋 스펙(JSON 형태)과 완전히 동기화
         result[country] = {
-            "risk_score": float(out["risk_score"][country]),
+            "country": country,
+            "risk_score": {
+                "score": float(out["risk_score"][country]),
+                "level": int(agent3.df.loc[country, "travel_advisory_level"]),
+                "level_label": f"{int(agent3.df.loc[country, 'travel_advisory_level'])}단계",
+                "components": {
+                    "travel_advisory": float(agent3.df.loc[country, "travel_advisory_level"]),
+                    "safety_notice_freq": float(agent3.df.loc[country, "safety_notice_count_monthly"]),
+                    "socio_indicator_risk": float(agent3.df.loc[country, "political_risk_keyword_score"])
+                },
+                "notice_count_used": int(agent3.df.loc[country, "safety_notice_count_monthly"])
+            },
             "cooperation_index": {
                 "score": float(out["cooperation_index"].loc[country, "score"]),
                 "grade": int(out["cooperation_index"].loc[country, "grade"]),
@@ -291,8 +331,22 @@ def analyze(reference_data: dict, target_countries: list | None = None) -> dict:
             "opportunity_ranking": [
                 [k, float(v)] for k, v in out["opportunity_ranking"][country]
             ],
-            "cluster": int(out["cluster"][country]),
             "similar_countries": [[k, float(v)] for k, v in similar.items()],
+            "evidence": {
+                "recent_safety_notices": raw_v.get("recent_safety_notices", []),
+                "recent_situations": raw_v.get("recent_situations", []),
+                "entrance_visa": raw_v.get("entrance_visa", {"general_passport_visa_required": "N/A"})
+            },
+            "data_sources": {
+                "risk_score": "외교부 해외안전여행 API → Agent3 정량화 점수 변환",
+                "evidence": "외교부 해외안전여행 API (Agent1) 원본 데이터",
+                "cooperation_index": "KOICA ODA / 무역통계 API (Agent2)",
+                "opportunity_score": "KOICA ODA / 무역통계 API (Agent2)",
+                "similar_countries": "Agent3 데이터 기반 유사도 추천 행렬"
+            },
+            "meta": {
+                "agent2_data_provided": True
+            }
         }
     return result
 
