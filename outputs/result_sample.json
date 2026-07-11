@@ -1,67 +1,40 @@
 {
   "country": "일본",
   "risk_score": {
-    "score": 51.32,
-    "level": 3,
-    "level_label": "3단계",
+    "score": 18.45,
+    "level": 1,
+    "level_label": "1단계",
     "components": {
-      "travel_advisory": 66.67,
-      "safety_notice_freq": 50.0,
-      "socio_indicator_risk": 32.18
+      "travel_advisory": 25.00,
+      "safety_notice_freq": 15.0,
+      "socio_indicator_risk": 15.35
     },
     "notice_count_used": 5
   },
   "cooperation_index": {
-    "score": 35.92,
-    "grade": 1
+    "score": 88.74,
+    "grade": 5
   },
   "opportunity_score": {
-    "AI": 54.0,
-    "스마트팜": 56.1,
-    "의료": 55.7,
-    "문화": 54.3,
-    "인프라": 54.6,
-    "에너지": 54.1
+    "AI": 84.0,
+    "스마트팜": 61.1,
+    "의료": 79.7,
+    "문화": 91.3,
+    "인프라": 72.6,
+    "에너지": 68.4
   },
   "opportunity_ranking": [
-    [
-      "스마트팜",
-      56.1
-    ],
-    [
-      "의료",
-      55.7
-    ],
-    [
-      "인프라",
-      54.6
-    ],
-    [
-      "문화",
-      54.3
-    ],
-    [
-      "에너지",
-      54.1
-    ],
-    [
-      "AI",
-      54.0
-    ]
+    ["문화", 91.3],
+    ["AI", 84.0],
+    ["의료", 79.7],
+    ["인프라", 72.6],
+    ["에너지", 68.4],
+    ["스마트팜", 61.1]
   ],
   "similar_countries": [
-    [
-      "케냐",
-      0.9597418365718281
-    ],
-    [
-      "탄자니아",
-      0.948188678602633
-    ],
-    [
-      "볼리비아",
-      0.9466564365204614
-    ]
+    ["독일", 0.9412],
+    ["영국", 0.9257],
+    ["호주", 0.9103]
   ],
   "evidence": {
     "recent_safety_notices": [
@@ -114,8 +87,8 @@
       }
     ],
     "entrance_visa": {
-      "general_passport_visa_required": "Y",
-      "general_passport_visa_note": "90일"
+      "general_passport_visa_required": "N",
+      "general_passport_visa_note": "관광 목적 90일 무비자"
     }
   },
   "data_sources": {
@@ -123,7 +96,7 @@
     "evidence": "외교부 해외안전여행 API (Agent1) - 가공 없이 원본 그대로 전달",
     "cooperation_index": "KOICA ODA / 무역통계 API (Agent2)",
     "opportunity_score": "KOICA ODA / 무역통계 API (Agent2)",
-    "similar_countries": "KOICA ODA / 무역통계 API (Agent2) + 비교국가 DB (전부 하나의 예시로 작성한 것입니다)"
+    "similar_countries": "Agent3 데이터 기반 유사도 추천 행렬 연산 결과"
   },
   "meta": {
     "agent2_data_provided": true
