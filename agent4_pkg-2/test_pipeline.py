@@ -41,12 +41,25 @@ agent2_raw = {
         "queried_at": "2026-07-11T03:00:00+00:00",
         "diplomatic": {
             "status": "ok",
-            "data": {"response": {"body": {"items": {"item": {}}}}},
+            "data": {"response": {"body": {"items": {"item": {
+                "country_nm": "베트남",
+                "country_iso_alp2": "VN",
+                "diplomatic_relations": "1992.12.22. 수교",
+                "oks_status": "약 173,000명('21)",
+                "export_amount": 15000000000,
+                "import_amount": 9000000000,
+            }}}}},
             "error": None,
         },
         "trade": {
             "status": "ok",
-            "data": {"response": {"body": {"items": {"item": {}}}}},
+            "data": {"response": {"body": {"items": {"item": {
+                "country_nm": "베트남",
+                "country_iso_alp2": "VN",
+                "yt_export_amount": 15000000000,
+                "yt_income_amount": 9000000000,
+                "yt_trade_year": 2023,
+            }}}}},
             "error": None,
         },
         "oda": {
@@ -90,12 +103,25 @@ agent2_raw = {
         "queried_at": "2026-07-11T03:00:00+00:00",
         "diplomatic": {
             "status": "ok",
-            "data": {"response": {"body": {"items": {"item": {}}}}},
+            "data": {"response": {"body": {"items": {"item": {
+                "country_nm": "일본",
+                "country_iso_alp2": "JP",
+                "diplomatic_relations": "1965.12.18. 수교",
+                "oks_status": "약 818,865명('21)",
+                "export_amount": 30000000000,
+                "import_amount": 54000000000,
+            }}}}},
             "error": None,
         },
         "trade": {
             "status": "ok",
-            "data": {"response": {"body": {"items": {"item": {}}}}},
+            "data": {"response": {"body": {"items": {"item": {
+                "country_nm": "일본",
+                "country_iso_alp2": "JP",
+                "yt_export_amount": 30000000000,
+                "yt_income_amount": 54000000000,
+                "yt_trade_year": 2023,
+            }}}}},
             "error": None,
         },
         "oda": {
@@ -163,6 +189,13 @@ a2_vn = inp_common["agent2"]["베트남"]
 a2_jp = inp_common["agent2"]["일본"]
 
 assert a2_vn.iso2 == "VN", "iso2 파싱 실패"
+
+# diplomatic/trade 텍스트 파싱 검증
+assert a2_vn.diplomatic_year == 1992, f"수교연도 파싱 실패: {a2_vn.diplomatic_year}"
+assert a2_vn.expat_count == 173000, f"교민수 파싱 실패: {a2_vn.expat_count}"
+assert a2_vn.trade_volume_usd_million is not None, "교역액 None"
+assert abs(a2_vn.trade_volume_usd_million - 24000.0) < 1, \
+    f"교역액 단위 오류: {a2_vn.trade_volume_usd_million}"  # (15B+9B)/1M = 24,000백만$
 
 # oda.cumulative: raw USD → /1_000_000 변환
 assert a2_vn.oda_cumulative_usd_million is not None, "누적 ODA None — list 파싱 실패"

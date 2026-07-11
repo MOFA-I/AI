@@ -60,6 +60,52 @@ def _pick(d: dict, *keys, default=None):
     return default
 
 
+def _extract_item(data: dict) -> dict:
+    """data.go.kr API 응답에서 첫 번째 item dict 추출.
+
+    지원 구조:
+    1. {"response": {"body": {"items": {"item": {...}|[{...}]}}}}  # 공공데이터포털 표준
+    2. {"data": [{...}]}  # 신형 REST JSON
+    3. flat dict  # item이 최상위인 경우
+    """
+    if not isinstance(data, dict):
+        return {}
+    resp = data.get("response", {})
+    if resp:
+        item = _pick(resp, "body.items.item")
+        if isinstance(item, list):
+            return item[0] if item else {}
+        if isinstance(item, dict):
+            return item
+    d = data.get("data")
+    if isinstance(d, list) and d:
+        return d[0] if isinstance(d[0], dict) else {}
+    if isinstance(d, dict):
+        return d
+    return data
+
+
+def _parse_year(s) -> int | None:
+    """텍스트에서 수교연도 추출: "1992.12.22. 수교" → 1992"""
+    if not s:
+        return None
+    m = re.search(r"\b(19|20)\d{2}\b", str(s))
+    return int(m.group(0)) if m else None
+
+
+def _parse_expat(s) -> int | None:
+    """교민현황 텍스트에서 교민수 추출: "약 173,000명('21)" → 173000"""
+    if not s:
+        return None
+    nums = re.findall(r"[\d,]+", str(s))
+    if not nums:
+        return None
+    try:
+        return int(nums[0].replace(",", ""))
+    except ValueError:
+        return None
+
+
 def adapt_agent2(raw: dict) -> Agent2Data:
     """팀원 B collector 결과(봉투 스키마, 국가 1개분) → Agent2Data.
 
@@ -67,12 +113,16 @@ def adapt_agent2(raw: dict) -> Agent2Data:
     - oda.cumulative.data : [{"국가명":…, "원":…, "달러":…}]  단위: raw USD → /1_000_000
     - oda.yearly.data     : [{"연도":…, "원":…, "달러":…}]    단위: raw USD → /1_000_000
     - overseas_presence.data : {"status":…, "orgs":[…], "org_count":…}
+    - diplomatic.data / trade.data : data.go.kr 원본 JSON (response.body.items.item 구조)
     """
     ev = raw.get("_evidence", {})
 
     diplomatic = _unwrap(raw.get("diplomatic")) or {}
     trade = _unwrap(raw.get("trade")) or {}
     oda = raw.get("oda") or {}
+
+    d_item = _extract_item(diplomatic)
+    t_item = _extract_item(trade)
     oda_cum = _unwrap(oda.get("cumulative"))   # list 또는 dict 또는 None
     oda_yr = _unwrap(oda.get("yearly"))         # list 또는 dict 또는 None
     presence = _unwrap(raw.get("overseas_presence"))
@@ -109,17 +159,24 @@ def adapt_agent2(raw: dict) -> Agent2Data:
     yearly = {str(k): float(v) for k, v in (by_year or {}).items()
               if v is not None and str(k).isdigit()}
 
+    # 교역액: 무역관계 API yt_export + yt_income (raw USD → /1M)
+    # 없으면 관계 API export_amount + import_amount로 대체
+    exp = _to_float(_pick(t_item, "yt_export_amount")) or 0
+    imp = _to_float(_pick(t_item, "yt_income_amount")) or 0
+    if not (exp or imp):
+        exp = _to_float(_pick(d_item, "export_amount")) or 0
+        imp = _to_float(_pick(d_item, "import_amount")) or 0
+    trade_volume = round((exp + imp) / 1_000_000, 2) if (exp or imp) else None
+
     return Agent2Data(
         iso2=raw.get("iso2"),
         queried_at=raw.get("queried_at"),
-        trade_volume_usd_million=_to_float(
-            _pick(trade, "volume_usd_million", "total_usd_million")),
+        trade_volume_usd_million=trade_volume,
         oda_cumulative_usd_million=oda_cumulative,
         oda_yearly=yearly,
         korea_orgs=orgs,
-        expat_count=_to_int(_pick(diplomatic, "expat_count")),
-        diplomatic_year=_to_int(_pick(diplomatic, "established_year",
-                                      "diplomatic_year")),
+        expat_count=_parse_expat(_pick(d_item, "oks_status")),
+        diplomatic_year=_parse_year(_pick(d_item, "diplomatic_relations")),
         sources_used=ev.get("sources_used", []),
         sources_failed=ev.get("sources_failed", []),
         sources_empty=ev.get("sources_empty", []),
