@@ -1,20 +1,23 @@
-# -*- coding: utf-8 -*-
 """
-agents/agent3_quant.py
+agent1_result = IssueAnalyzer().analyze(country_name)
+agent2_result = IntelligenceCollector().collect(country_name)   # 아직 없으면 None
+agent3_result = InsightGenerator().analyze(agent1_result, agent2_result)
+report = ReportGenerator().generate(agent1_result, agent2_result, agent3_result, user_type)
 
-Agent3 - 데이터 기반 정량 분석 엔진 (pandas + scikit-learn)
 
-역할:
-  Agent1(데이터 수집), Agent2(전처리) 등에서 넘겨받은 국가별 raw 데이터를 입력받아
-    1) 위험도 점수
-    2) Cooperation Index (5단계)
-    3) Cooperation Opportunity Score (분야별 랭킹)
-    4) 유사국가 추천 (코사인 유사도 + KMeans 군집)
-  을 계산해 다음 Agent(예: 보고서 생성 Agent)에 넘길 수 있는 형태로 반환
+일반 여행자용 "위험도 점수만 빠르게" 필요한 경우를 위해 quick_risk_score()도
+별도로 노출한다. Orchestrator가 사용자 타입(여행자/기업/연구자)에 따라
+InsightGenerator 전체를 돌릴지, quick_risk_score만 쓸지 선택하면 된다.
+
 """
 
 from __future__ import annotations
+import sys
+import os
+import re
 import json
+import datetime as _dt
+
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler
@@ -24,124 +27,41 @@ from sklearn.decomposition import PCA
 
 import config
 
+# ======================================================================
+# 0) Agent3Analyzer - 여러 국가를 한 번에 비교분석하는 내부 계산 엔진
+#    (Cooperation Index / Opportunity Score / 유사국가 추천은 비교 대상
+#     국가군이 있어야 정규화·유사도 계산이 성립하므로 배치 엔진으로 둠)
+# ======================================================================
 class Agent3Analyzer:
     """정량 분석 파이프라인. raw dict -> DataFrame -> 4대 지표 -> (선택)군집/PCA"""
 
     def __init__(self, raw_data: dict):
         self.raw = raw_data
         self.countries = list(raw_data.keys())
-        self.country_mapping = country_mapping if country_mapping else {}
         self.df = self._build_base_dataframe()
 
-    def _parse_travel_level(self, warning_level: str | None) -> float:
-        # 문자열 경보 레벨을 정량 점수로 변환 (예: '1단계' -> 1.0, 없으면 0.0)
-        if not warning_level:
-            return config.ADVISORY_DEFAULT_LEVEL
-        warning_level_str = str(warning_level).strip()
-        
-        # 1. 숫자가 들어가 있으면 숫자 추출 (예: "2단계" -> 2.0)
-        digits = "".join([c for c in warning_level_str if c.isdigit()])
-        if digits:
-            return float(digits)
-            
-        # 2. 숫자가 없으면 config의 핵심 키워드가 포함되어 있는지 훑기
-        for keyword, level in config.ADVISORY_KEYWORD_LEVEL.items():
-            if keyword in warning_level_str:
-                return float(level)
-                
-        return config.ADVISORY_DEFAULT_LEVEL
-
-    def _parse_diplomatic_year(self, diplomatic_data: dict | None) -> float:
-        # 외교 관계 원본 데이터 등에서 수교 연도를 추출
-        if not diplomatic_data or not isinstance(diplomatic_data, dict):
-            return 2026.0
-        # Agent2 원본 응답 구조에 맞게 커스텀 파싱 (예: "수교일자": "1992-12-22" -> 1992)
-        # 아래는 예시 필드명이며 실제 데이터 구조에 맞게 매핑 필요합니다.
-        for key, val in diplomatic_data.items():
-            if "연도" in key or "수교" in key:
-                digits = "".join([c for c in str(val) if c.isdigit()][:4])
-                if len(digits) == 4:
-                    return float(digits)
-      
-
-    def _safe_minmax_scale(self, series: pd.Series) -> np.ndarray:
-        # 수학적 에러 방지: 데이터가 모두 같거나 부족해서 분모가 0이 되는 현상 방지
-        if series.nunique() <= 1:
-            # 모든 값이 같으면 중간값인 50.0으로 통일하거나 원래 값이 0이면 0으로 반환
-            return np.full(series.shape, 50.0) if series.max() != 0 else np.zeros(series.shape)
-        
-        scaler = MinMaxScaler((0, 100))
-        return scaler.fit_transform(series.to_frame()).flatten()
-      
     def _build_base_dataframe(self) -> pd.DataFrame:
-        aggregated_rows = {}
-        for input_key, v in self.raw.items():
-            # 1. Agent2 매핑 딕셔너리에서 표준 국가명 찾기
-            mapping_info = country_mapping.get(input_key, {})
-            standard_country = mapping_info.get("matched_to", input_key) # 없으면 본래 키 유지
-            
-            # 2. 나미비아 같은 iso2 NaN 값 처리
-            iso2 = mapping_info.get("iso2")
-            iso2_str = "" if pd.isna(iso2) else str(iso2)
+        rows = []
+        for country, v in self.raw.items():
+            rows.append({
+                "country": country,
+                "travel_advisory_level": v["travel_advisory_level"],
+                "safety_notice_count_monthly": v["safety_notice_count_monthly"],
+                "political_risk_keyword_score": v["political_risk_keyword_score"],
+                "expat_count": v["expat_count"],
+                "diplomatic_year": v["diplomatic_year"],
+                "oda_cumulative_usd_million": v["oda_cumulative_usd_million"],
+                "oda_trend_score": v["oda_trend_score"],
+                "org_count": v["org_count"],
+            })
+        return pd.DataFrame(rows).set_index("country")
 
-            # 기존 데이터 추출 로직
-            security = v.get("security_environment", {})
-            oda = v.get("oda", {})
-            oda_cum_list = oda.get("cumulative", {}).get("data")
-            oda_cum_usd = 0.0
-            if oda_cum_list and isinstance(oda_cum_list, list) and len(oda_cum_list) > 0:
-                oda_cum_usd = float(oda_cum_list[0].get("달러", 0))
-
-            trade_data = v.get("trade", {}).get("data", {})
-            trade_volume = float(trade_data.get("trade_volume", 0.0)) if isinstance(trade_data, dict) else 0.0
-
-            # 3. 표준 국가명 기준으로 데이터를 수집할 딕셔너리 생성 및 누적
-            if standard_country not in aggregated_rows:
-                aggregated_rows[standard_country] = {
-                    "country": standard_country,
-                    "iso2": iso2_str,
-                    "travel_advisory_level": self._parse_travel_level(v.get("travel_warning_level")),
-                    "safety_notice_count_monthly": len(v.get("recent_safety_notices", [])),
-                    "political_risk_keyword_score": float(security.get("suicide_death_rate", 0.0)),
-                    "trade_volume_usd_million": trade_volume,
-                    "oda_cumulative_usd_million": oda_cum_usd / 1_000_000.0,
-                    "expat_count": float(v.get("overseas_presence", {}).get("data", {}).get("org_count", 0) or 0),
-                    "diplomatic_year": self._parse_diplomatic_year(v.get("diplomatic", {}).get("data")),
-                }
-                for f in config.ODA_FIELDS:
-                    aggregated_rows[standard_country][f"oda_freq__{f}"] = float(v.get("koica_oda_field_freq", {}).get(f, 0.0))
-                for f in config.OPPORTUNITY_FIELDS:
-                    aggregated_rows[standard_country][f"industry__{f}"] = float(v.get("industry_status", {}).get(f, 0.0))
-                    aggregated_rows[standard_country][f"keyword__{f}"] = float(v.get("keyword_relevance", {}).get(f, 0.0))
-                    aggregated_rows[standard_country][f"history__{f}"] = float(v.get("cooperation_history_score", {}).get(f, 0.0))
-            else:
-                # 이미 표준 국가명이 등록되어 있다면(예: 가나대학교 이후 가나 데이터 처리 시) 수치형 데이터 가산/최대값 갱신
-                existing = aggregated_rows[standard_country]
-                existing["trade_volume_usd_million"] += trade_volume
-                existing["oda_cumulative_usd_million"] += (oda_cum_usd / 1_000_000.0)
-                existing["expat_count"] += float(v.get("overseas_presence", {}).get("data", {}).get("org_count", 0) or 0)
-                # 경보 레벨이나 위험도는 더 높은(위험한) 값을 보수적으로 선택
-                existing["travel_advisory_level"] = max(existing["travel_advisory_level"], self._parse_travel_level(v.get("travel_warning_level")))
-                existing["safety_notice_count_monthly"] += len(v.get("recent_safety_notices", []))
-
-        # 4. 딕셔너리를 DataFrame으로 변환 후 Index 지정
-        return pd.DataFrame(list(aggregated_rows.values())).set_index("country")
-
-    # ------------------------------------------------------------------
-    # 1) 위험도 점수
-    # ------------------------------------------------------------------
     def calc_risk_score(self) -> pd.Series:
         df = self.df
         w = config.RISK_WEIGHTS
-
-        advisory_scaled = MinMaxScaler((0, 100)).fit_transform(
-            df[["travel_advisory_level"]]
-        ).flatten()
-        notice_scaled = MinMaxScaler((0, 100)).fit_transform(
-            df[["safety_notice_count_monthly"]]
-        ).flatten()
+        advisory_scaled = MinMaxScaler((0, 100)).fit_transform(df[["travel_advisory_level"]]).flatten()
+        notice_scaled = MinMaxScaler((0, 100)).fit_transform(df[["safety_notice_count_monthly"]]).flatten()
         keyword_score = df["political_risk_keyword_score"].to_numpy()
-
         risk = (
             advisory_scaled * w["travel_advisory"]
             + notice_scaled * w["safety_notice"]
@@ -149,22 +69,16 @@ class Agent3Analyzer:
         )
         return pd.Series(np.round(risk, 2), index=df.index, name="risk_score")
 
-    # ------------------------------------------------------------------
-    # 2) Cooperation Index
-    # ------------------------------------------------------------------
     def calc_cooperation_index(self) -> pd.DataFrame:
         df = self.df
         w = config.COOPERATION_WEIGHTS
         scaler = MinMaxScaler((0, 100))
-
-        trade_s = scaler.fit_transform(df[["trade_volume_usd_million"]]).flatten()
         oda_s = scaler.fit_transform(df[["oda_cumulative_usd_million"]]).flatten()
         expat_s = scaler.fit_transform(df[["expat_count"]]).flatten()
         year_s = scaler.fit_transform(-df[["diplomatic_year"]]).flatten()  # 오래될수록 가점
 
         score = (
-            trade_s * w["trade_volume"]
-            + oda_s * w["oda_cumulative"]
+            oda_s * w["oda_cumulative"]
             + expat_s * w["expat_count"]
             + year_s * w["diplomatic_year"]
         )
@@ -175,59 +89,28 @@ class Agent3Analyzer:
             labels=list(range(1, config.COOPERATION_GRADE_COUNT + 1))
         ).astype(int)
         grade.name = "grade"
-
         return pd.concat([score, grade], axis=1)
 
-    # ------------------------------------------------------------------
-    # 3) Cooperation Opportunity Score
-    # ------------------------------------------------------------------
-    def calc_opportunity_score(self) -> pd.DataFrame:
+    def calc_opportunity_score(self) -> pd.Series:
         w = config.OPPORTUNITY_WEIGHTS
         df = self.df
         scaler = MinMaxScaler((0, 100))
-        result = pd.DataFrame(index=df.index)
 
-        for opp_field in OPPORTUNITY_FIELDS:
-            oda_field = next(k for k, v in config.ODA_TO_OPPORTUNITY.items() if v == opp_field)
-            oda_col = f"oda_freq__{oda_field}"
+        trend_s = scaler.fit_transform(df[["oda_trend_score"]]).flatten()
+        org_s = scaler.fit_transform(df[["org_count"]]).flatten()
 
-            oda_norm = scaler.fit_transform(df[[oda_col]]).flatten()
-            industry_col = df[f"industry__{opp_field}"].to_numpy()
-            keyword_col = df[f"keyword__{opp_field}"].to_numpy()
-            history_col = df[f"history__{opp_field}"].to_numpy()
+        score = trend_s * w["oda_trend"] + org_s * w["org_presence"]
+        return pd.Series(np.round(score, 2), index=df.index, name="opportunity_score")
 
-            total = (
-                oda_norm * w["oda_freq"]
-                + industry_col * w["industry"]
-                + keyword_col * w["keyword"]
-                + history_col * w["history"]
-            )
-            result[opp_field] = np.round(total, 1)
-
-        return result
-
-    def opportunity_ranking(self, opp_df: pd.DataFrame) -> dict:
-        return {
-            country: list(row.sort_values(ascending=False).items())
-            for country, row in opp_df.iterrows()
-        }
-
-    # ------------------------------------------------------------------
-    # 4) 유사국가 추천
-    # ------------------------------------------------------------------
     def build_feature_matrix(self, risk, coop, opp) -> pd.DataFrame:
-        return pd.concat([risk, coop["score"].rename("coop_score"), opp], axis=1)
+        return pd.concat([
+            risk,
+            coop["score"].rename("coop_score"),
+            opp.rename("opportunity_score"),
+        ], axis=1)
 
     def similarity_matrix(self, feature_df: pd.DataFrame) -> pd.DataFrame:
-        if feature_df.empty: return pd.DataFrame()
-        
-        # 데이터 왜곡 방지 로그 변환:  로그 스케일링 적용
-        df_log = feature_df.copy()
-        for col in ["trade_volume_usd_million", "oda_cumulative_usd_million"]:
-            if col in df_log.columns:
-                df_log[col] = np.log1p(df_log[col])
-                
-        scaled = MinMaxScaler().fit_transform(df_log.to_numpy())
+        scaled = MinMaxScaler().fit_transform(feature_df.to_numpy())
         sim = cosine_similarity(scaled)
         return pd.DataFrame(sim, index=feature_df.index, columns=feature_df.index)
 
@@ -238,23 +121,22 @@ class Agent3Analyzer:
         s = sim_matrix.loc[target].drop(target).sort_values(ascending=False)
         return s.head(top_n)
 
-    # ------------------------------------------------------------------
-    # 5) KMeans 군집 (부가 인사이트)
-    # ------------------------------------------------------------------
     def cluster_countries(self, feature_df: pd.DataFrame) -> pd.Series:
+        n_samples = len(feature_df)
+        k = min(config.CLUSTER_N, n_samples)  # 참조국 수가 적으면 군집 수도 줄임
+        if k < 2:
+            return pd.Series([0] * n_samples, index=feature_df.index, name="cluster")
         scaled = MinMaxScaler().fit_transform(feature_df.to_numpy())
-        km = KMeans(n_clusters=config.CLUSTER_N, random_state=config.RANDOM_STATE, n_init=10)
+        km = KMeans(n_clusters=k, random_state=config.RANDOM_STATE, n_init=10)
         labels = km.fit_predict(scaled)
         return pd.Series(labels, index=feature_df.index, name="cluster")
 
-    # ------------------------------------------------------------------
-    # 6) PCA 2D 투영 (시각화용)
-    # ------------------------------------------------------------------
     def pca_2d(self, feature_df: pd.DataFrame) -> pd.DataFrame:
         scaled = MinMaxScaler().fit_transform(feature_df.to_numpy())
-        n_components = min(2, scaled.shape[1], scaled.shape[0])
-        pca = PCA(n_components=n_components, random_state=config.RANDOM_STATE)
-        coords = pca.fit_transform(scaled)
+        n_components = min(2, scaled.shape[0], scaled.shape[1])
+        if n_components < 1:
+            return pd.DataFrame(index=feature_df.index)
+        coords = PCA(n_components=n_components, random_state=config.RANDOM_STATE).fit_transform(scaled)
         cols = [f"pc{i+1}" for i in range(n_components)]
         return pd.DataFrame(coords, index=feature_df.index, columns=cols)
 
@@ -262,18 +144,14 @@ class Agent3Analyzer:
         risk = self.calc_risk_score()
         coop = self.calc_cooperation_index()
         opp = self.calc_opportunity_score()
-        opp_rank = self.opportunity_ranking(opp)
-
         feature_df = self.build_feature_matrix(risk, coop, opp)
         sim = self.similarity_matrix(feature_df)
         clusters = self.cluster_countries(feature_df)
         pca_coords = self.pca_2d(feature_df)
-
         return {
             "risk_score": risk,
             "cooperation_index": coop,
             "opportunity_score": opp,
-            "opportunity_ranking": opp_rank,
             "feature_matrix": feature_df,
             "similarity_matrix": sim,
             "cluster": clusters,
@@ -281,128 +159,260 @@ class Agent3Analyzer:
         }
 
 
-def analyze(reference_data: dict, country_mapping: dict | None = None, target_countries: list | None = None) -> dict:
-    # 1. 클래스 생성할 때 매핑 데이터 잊지 말고 주입!
-    agent3 = Agent3Analyzer(reference_data, country_mapping=country_mapping)
-    out = agent3.run_all()
+# ======================================================================
+# 1) 위험도 점수
+# ======================================================================
+def _extract_advisory_level(agent1_data: dict) -> int:
+    """'3단계 철수권고 (일부 지역)' 같은 문자열에서 1~4단계 숫자를 뽑아낸다."""
+    text = (
+        agent1_data.get("security_environment", {}).get("current_travel_alarm")
+        or agent1_data.get("travel_warning_level")
+        or ""
+    )
+    m = re.search(r"([1-4])\s*단계", text)
+    if m:
+        return int(m.group(1))
+    for keyword, level in config.ADVISORY_KEYWORD_LEVEL.items():
+        if keyword in text:
+            return level
+    return config.ADVISORY_DEFAULT_LEVEL
 
-    if not out: return {}
+
+def _safety_notice_score(agent1_data: dict) -> tuple[float, int]:
+    # 안전공지 리스트를 0~100 점수로 환산.
+    # 외교부 API에 최근 1년 내 공지가 있으면 그것만 세고, 없으면 전체 리스트 건수로 대체
     
-    # 분석 엔진을 통과해 나온 '표준화 완료된 국가 목록'을 기준으로 잡습니다.
-    all_standard_countries = list(agent3.df.index)
-    
-    # 2. 타겟 국가 필터링도 표준 국가명 기준으로 안전하게 변환
-    if target_countries:
-        targets = []
-        for t in target_countries:
-            m_info = (country_mapping or {}).get(t, {})
-            std = m_info.get("matched_to", t)
-            if std in all_standard_countries:
-                targets.append(std)
-    else:
-        targets = all_standard_countries
+    notices = agent1_data.get("recent_safety_notices") or []
+    today = _dt.date.today()
+    recent = []
+    for n in notices:
+        try:
+            d = _dt.date.fromisoformat(n.get("date", ""))
+            if (today - d).days <= config.SAFETY_NOTICE_RECENT_WINDOW_DAYS:
+                recent.append(n)
+        except (ValueError, TypeError):
+            continue
+    count = len(recent) if recent else len(notices)
+    score = min(count, config.SAFETY_NOTICE_MAX_COUNT) / config.SAFETY_NOTICE_MAX_COUNT * 100
+    return round(score, 2), count
 
-    result = {}
-    for country in set(targets):
-        similar = agent3.recommend_similar(out["similarity_matrix"], country)
-        raw_v = reference_data.get(country, {}) # 원본 에비던스 백업용
 
-        # 3. 팀원들이 요구한 최종 아웃풋 스펙(JSON 형태)과 완전히 동기화
-        result[country] = {
+def _political_situation_risk_score(agent1_data: dict) -> tuple[float, list]:
+    """
+    recent_situations(외교부 '주요 정세 정보' API 원본 데이터)를 키워드 매칭으로
+    분석해서 0~100 위험도 점수를 계산
+
+    반환: (점수, 매칭된 이벤트 목록) - 매칭 목록은 data_sources/evidence 설명용으로 같이 반환.
+    정상적인 정권 교체(내각 출범, 선거 등)처럼 키워드가 안 걸리는 이벤트는 0점 처리된다
+    (정권 교체 자체를 위험 신호로 보지 않기 때문).
+
+    주의: API가 최신 이벤트를 못 줄 때가 있어서 - "최근 기간 내 이벤트가 하나도 없으면 전체 리스트로 폴백"
+    처리한다. (기간 내 이벤트가 있는데 그중 위험 키워드가 안 걸리는 것과, 기간 내
+    이벤트 자체가 없는 것은 다르게 취급 - 전자는 진짜로 0점, 후자만 폴백)
+    """
+    situations = agent1_data.get("recent_situations") or []
+    today = _dt.date.today()
+
+    def _within_window(s: dict) -> bool:
+        try:
+            d = _dt.date.fromisoformat(s.get("date", ""))
+            return (today - d).days <= config.POLITICAL_RISK_WINDOW_DAYS
+        except (ValueError, TypeError):
+            return True  # 날짜 파싱 실패하면 배제하지 않고 포함
+
+    def _match(pool: list) -> list:
+        matched = []
+        for s in pool:
+            event_text = s.get("event", "")
+            for severity in sorted(config.POLITICAL_RISK_KEYWORDS.keys(), reverse=True):
+                if any(kw in event_text for kw in config.POLITICAL_RISK_KEYWORDS[severity]):
+                    matched.append((event_text, severity))
+                    break
+        return matched
+
+    recent = [s for s in situations if _within_window(s)]
+    pool = recent if recent else situations  # 기간 내 이벤트가 아예 없으면 전체로 폴백
+    matched = _match(pool)
+
+    if not matched:
+        return 0.0, []
+
+    max_severity = max(sev for _, sev in matched)
+    extra_events = min(len(matched) - 1, 3)  # 추가 매칭은 최대 3건까지만 가산 반영
+    score = min(100, max_severity + extra_events * config.POLITICAL_RISK_FREQUENCY_BONUS)
+    return round(float(score), 2), matched
+
+# 위험도 점수만 계산하고 Agent2 안 거침 (일반 여행자용)
+def quick_risk_score(agent1_data: dict) -> dict:
+    w = config.RISK_WEIGHTS
+    advisory_level = _extract_advisory_level(agent1_data)
+    advisory_score = (advisory_level - 1) / (4 - 1) * 100
+    notice_score, notice_count = _safety_notice_score(agent1_data)
+    political_score, matched_events = _political_situation_risk_score(agent1_data)
+
+    total = (
+        advisory_score * w["travel_advisory"]
+        + notice_score * w["safety_notice"]
+        + political_score * w["political_keyword"]
+    )
+    return {
+        "score": round(total, 2),
+        "level": advisory_level,
+        "level_label": f"{advisory_level}단계",
+        "components": {
+            "travel_advisory": round(advisory_score, 2),
+            "safety_notice_freq": notice_score,
+            "political_keyword_risk": political_score,
+        },
+        "notice_count_used": notice_count,
+        "matched_risk_events": [{"event": e, "severity": s} for e, s in matched_events],
+    }
+
+# 2) InsightGenerator
+# 1-2) Agent2 실제 스키마 파싱
+
+# agent2_data['oda']['cumulative']['data'][0]['달러'] 를 추출
+def _extract_oda_cumulative_usd(agent2_data: dict) -> float:
+    node = ((agent2_data or {}).get("oda") or {}).get("cumulative") or {}
+    if node.get("status") != "ok":
+        return 0.0
+    data = node.get("data") or []
+    if not data:
+        return 0.0
+    return float(data[0].get("달러", 0) or 0)
+
+
+def _extract_oda_trend_score(agent2_data: dict) -> float:
+    """
+    agent2_data['oda']['yearly']['data'] (연도별 [{'연도':int,'달러':int}, ...])에서
+    최근 config.ODA_TREND_RECENT_YEARS년의 합계를 그 이전 같은 기간 합계와 비교해
+    "증가 추세면 높은 점수" 식으로 0~100 근사치 계산
+    """
+    node = ((agent2_data or {}).get("oda") or {}).get("yearly") or {}
+    if node.get("status") != "ok":
+        return 0.0
+    data = node.get("data") or []
+    if len(data) < 2:
+        return 0.0
+
+    sorted_data = sorted(data, key=lambda d: d.get("연도", 0))
+    n = config.ODA_TREND_RECENT_YEARS
+    recent = sorted_data[-n:]
+    previous = sorted_data[-2 * n:-n] if len(sorted_data) >= 2 * n else sorted_data[:-n]
+
+    recent_sum = sum(d.get("달러", 0) or 0 for d in recent)
+    previous_sum = sum(d.get("달러", 0) or 0 for d in previous)
+
+    if previous_sum <= 0:
+        return 100.0 if recent_sum > 0 else 0.0
+
+    growth_ratio = recent_sum / previous_sum  # 1.0 = 변화 없음, 2.0 = 2배 증가
+    score = min(100.0, max(0.0, (growth_ratio - 1.0) * 100))
+    return round(score, 2)
+
+# agent2_data['overseas_presence']['data']['org_count'] 추출
+def _extract_org_count(agent2_data: dict) -> float:
+    node = (agent2_data or {}).get("overseas_presence") or {}
+    if node.get("status") != "ok":
+        return 0.0
+    data = node.get("data") or {}
+    return float(data.get("org_count", 0) or 0)
+
+
+def _build_country_row(agent1_data: dict, agent2_data: dict) -> dict:
+    """
+    agent1_data + agent2_data(raw) 한 쌍을 Agent3Analyzer가 바로 쓸 수 있는
+    flat 딕셔너리로 변환 
+    질문받은 국가뿐 아니라 참조국(비교 대상) 처리에서도 재사용
+    """
+    risk = quick_risk_score(agent1_data)
+    missing = [k for k in ("expat_count", "diplomatic_year") if k not in agent1_data]
+    if missing:
+        raise KeyError(
+            f"agent1_data({agent1_data.get('country', '?')})에 {missing} 필드가 없습니다. "
+            f"Cooperation Index 계산에는 Agent1이 제공하는 expat_count(교민수)/"
+            f"diplomatic_year(수교연도)가 필요합니다."
+        )
+    return {
+        "travel_advisory_level": risk["level"],
+        "safety_notice_count_monthly": risk["notice_count_used"],
+        "political_risk_keyword_score": risk["components"]["political_keyword_risk"],
+        "expat_count": agent1_data["expat_count"],
+        "diplomatic_year": agent1_data["diplomatic_year"],
+        "oda_cumulative_usd_million": _extract_oda_cumulative_usd(agent2_data),
+        "oda_trend_score": _extract_oda_trend_score(agent2_data),
+        "org_count": _extract_org_count(agent2_data),
+    }, risk
+
+
+class InsightGenerator:
+    def analyze(self, agent1_data: dict, agent2_data: dict | None = None,
+                reference_dataset: dict | None = None) -> dict:
+        country = agent1_data.get("country", "UNKNOWN")
+        risk = quick_risk_score(agent1_data)
+
+        result = {
             "country": country,
-            "risk_score": {
-                "score": float(out["risk_score"][country]),
-                "level": int(agent3.df.loc[country, "travel_advisory_level"]),
-                "level_label": f"{int(agent3.df.loc[country, 'travel_advisory_level'])}단계",
-                "components": {
-                    "travel_advisory": float(agent3.df.loc[country, "travel_advisory_level"]),
-                    "safety_notice_freq": float(agent3.df.loc[country, "safety_notice_count_monthly"]),
-                    "socio_indicator_risk": float(agent3.df.loc[country, "political_risk_keyword_score"])
-                },
-                "notice_count_used": int(agent3.df.loc[country, "safety_notice_count_monthly"])
-            },
-            "cooperation_index": {
-                "score": float(out["cooperation_index"].loc[country, "score"]),
-                "grade": int(out["cooperation_index"].loc[country, "grade"]),
-            },
-            "opportunity_score": {
-                k: float(v) for k, v in out["opportunity_score"].loc[country].items()
-            },
-            "opportunity_ranking": [
-                [k, float(v)] for k, v in out["opportunity_ranking"][country]
-            ],
-            "similar_countries": [[k, float(v)] for k, v in similar.items()],
+            "risk_score": risk,
+            "cooperation_index": None,
+            "opportunity_score": None,
+            "similar_countries": None,
+            # Agent1 원본 데이터를 가공 없이 그대로 넘김 - Agent4 뉴스/근거에 바로 사용
             "evidence": {
-                "recent_safety_notices": raw_v.get("recent_safety_notices", []),
-                "recent_situations": raw_v.get("recent_situations", []),
-                "entrance_visa": raw_v.get("entrance_visa", {"general_passport_visa_required": "N/A"})
+                "recent_safety_notices": agent1_data.get("recent_safety_notices", []),
+                "recent_situations": agent1_data.get("recent_situations", []),
+                "entrance_visa": agent1_data.get("entrance_visa", {}),
             },
             "data_sources": {
-                "risk_score": "외교부 해외안전여행 API → Agent3 정량화 점수 변환",
-                "evidence": "외교부 해외안전여행 API (Agent1) 원본 데이터",
-                "cooperation_index": "KOICA ODA / 무역통계 API (Agent2)",
-                "opportunity_score": "KOICA ODA / 무역통계 API (Agent2)",
-                "similar_countries": "Agent3 데이터 기반 유사도 추천 행렬"
+                "risk_score": "외교부 해외안전여행 API (여행경보 단계 / 안전공지 건수 / 주요정세 키워드 매칭) → Agent3가 0~100 점수로 변환",
+                "evidence": "외교부 해외안전여행 API (Agent1) - 가공 없이 원본 그대로 전달",
+                "cooperation_index":"교민수·수교연도(Agent1) + KOICA 국가별 지원실적 CSV(15051102)",
+                "opportunity_score":"KOICA 국가별 지원실적 CSV(15051102) + 외교부 해외진출현황 CSV(15076565)",
+                "similar_countries": "위험도, 협력지수, 기회지수를 이용한 비교 분석 (참조국 데이터셋: Orchestrator 제공)",
             },
-            "meta": {
-                "agent2_data_provided": True
-            }
+            "meta": {"agent2_data_provided": bool(agent2_data)},
         }
-    return result
 
+        if agent2_data:
+            self._fill_cooperation_and_opportunity(result, country, agent1_data, agent2_data, risk, reference_dataset)
 
-def main():
-    """단독 실행용 데모. 실제 파이프라인에서는 analyze()를 직접 import해서 쓰면 됨."""
-    raw = generate_countries()
-    agent3 = Agent3Analyzer(raw)
-    out = agent3.run_all()
+        return result
 
-    pd.set_option("display.width", 120)
-    pd.set_option("display.max_columns", 20)
+    def _fill_cooperation_and_opportunity(self, result, country, agent1_data, agent2_data, risk, reference_dataset=None):
+        if reference_dataset:
+            reference = {}
+            for ref_country, ref_raw in reference_dataset.items():
+                try:
+                    row, _ = _build_country_row(ref_raw["agent1_data"], ref_raw.get("agent2_data") or {})
+                    reference[ref_country] = row
+                except (KeyError, TypeError) as e:
+                    print(f"[경고] 참조국 '{ref_country}' 데이터 처리 실패, 비교 대상에서 제외: {e}")
+            reference_source_note = f"Orchestrator가 제공한 참조국 {len(reference)}개국 실데이터"
+        
 
-    print("=" * 70)
-    print("[Agent3] 위험도 점수 (내림차순)")
-    print("=" * 70)
-    print(out["risk_score"].sort_values(ascending=False))
+        row, _ = _build_country_row(agent1_data, agent2_data)
+        reference[country] = row
 
-    print("\n" + "=" * 70)
-    print("[Agent3] Cooperation Index")
-    print("=" * 70)
-    print(out["cooperation_index"].sort_values("score", ascending=False))
+        analyzer = Agent3Analyzer(reference)
+        out = analyzer.run_all()
+        similar = analyzer.recommend_similar(out["similarity_matrix"], country)
 
-    print("\n" + "=" * 70)
-    print("[Agent3] Cooperation Opportunity Score")
-    print("=" * 70)
-    print(out["opportunity_score"])
+        result["cooperation_index"] = {
+            "score": float(out["cooperation_index"].loc[country, "score"]),
+            "grade": int(out["cooperation_index"].loc[country, "grade"]),
+        }
+        result["opportunity_score"] = float(out["opportunity_score"][country])
+        result["similar_countries"] = [[k, float(v)] for k, v in similar.items()]
 
-    print("\n" + "=" * 70)
-    print("[Agent3] KMeans 군집 결과")
-    print("=" * 70)
-    print(out["cluster"].sort_values())
-
-    print("\n" + "=" * 70)
-    print("[Agent3] 유사국가 추천 - '베트남' 기준")
-    print("=" * 70)
-    print(agent3.recommend_similar(out["similarity_matrix"], "베트남"))
-
-    # ── Orchestrator가 실제로 호출할 방식 데모 ──────────────────────
-    # Agent1(Issue Analyzer)이 "베트남에 대해 물어봤다"고 판단해서 넘겨줬다고 가정.
-    # reference_data는 항상 전체 DB(raw)를 넣고, target_countries만 좁혀서 넘긴다.
-    print("\n" + "=" * 70)
-    print("[Agent3] analyze() 인터페이스 데모 - Orchestrator가 '베트남'만 요청한 경우")
-    print("=" * 70)
-    single_result = analyze(reference_data=raw, target_countries=["베트남"])
-    import json
-    print(json.dumps(single_result, ensure_ascii=False, indent=2))
-
-    # 전체 국가 결과는 outputs/에 저장 (배치성 리포트/대시보드용)
-    import os
-    full_result = analyze(reference_data=raw, target_countries=None)
-    os.makedirs("outputs", exist_ok=True)
-    with open("outputs/result_sample.json", "w", encoding="utf-8") as f:
-        json.dump(full_result, f, ensure_ascii=False, indent=2)
-    print("\n-> outputs/result_sample.json 저장 완료 (전체 국가)")
-
-
-if __name__ == "__main__":
-    main()
+        result["data_sources"]["cooperation_index"] = (
+            "ODA누적액 = 외교부 무역관계/KOICA ODA API (Agent2 oda.cumulative), "
+            "교민수/수교연도 = 외교부 재외동포/외교관계 데이터 (Agent1). "
+            f"비교 기준: {reference_source_note}"
+        )
+        result["data_sources"]["opportunity_score"] = (
+            "ODA 지원 추세(최근 5년 vs 이전 5년) = KOICA ODA API (Agent2 oda.yearly), "
+            "한국 기관 해외진출 수 = 외교부 해외진출현황 CSV (Agent2 overseas_presence). "
+        )
+        result["data_sources"]["similar_countries"] = (
+            f"위 지표들을 벡터화 + 비교 기준: {reference_source_note}"
+        )
