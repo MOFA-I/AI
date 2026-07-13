@@ -27,13 +27,11 @@ from sklearn.decomposition import PCA
 
 import config
 
-# ======================================================================
 # 0) Agent3Analyzer - 여러 국가를 한 번에 비교분석하는 내부 계산 엔진
 #    (Cooperation Index / Opportunity Score / 유사국가 추천은 비교 대상
-#     국가군이 있어야 정규화·유사도 계산이 성립하므로 배치 엔진으로 둠)
-# ======================================================================
+#     국가군이 있어야 정규화·유사도 계산이 성립하해서 배치 엔진으로 둠)
 class Agent3Analyzer:
-    """정량 분석 파이프라인. raw dict -> DataFrame -> 4대 지표 -> (선택)군집/PCA"""
+    # 정량 분석 파이프라인. raw dict -> DataFrame -> 4대 지표 -> (선택)군집/PCA
 
     def __init__(self, raw_data: dict):
         self.raw = raw_data
@@ -50,6 +48,7 @@ class Agent3Analyzer:
                 "political_risk_keyword_score": v["political_risk_keyword_score"],
                 "expat_count": v["expat_count"],
                 "diplomatic_year": v["diplomatic_year"],
+                "trade_volume": v["trade_volume"], # 무역 규모
                 "oda_cumulative_usd_million": v["oda_cumulative_usd_million"],
                 "oda_trend_score": v["oda_trend_score"],
                 "org_count": v["org_count"],
@@ -73,12 +72,14 @@ class Agent3Analyzer:
         df = self.df
         w = config.COOPERATION_WEIGHTS
         scaler = MinMaxScaler((0, 100))
+        trade_s = scaler.fit_transform(df[["trade_volume"]]).flatten() # 무역 규모 
         oda_s = scaler.fit_transform(df[["oda_cumulative_usd_million"]]).flatten()
         expat_s = scaler.fit_transform(df[["expat_count"]]).flatten()
         year_s = scaler.fit_transform(-df[["diplomatic_year"]]).flatten()  # 오래될수록 가점
 
         score = (
-            oda_s * w["oda_cumulative"]
+            trade_s * w["trade_volume"] # 무역 규모
+            + oda_s * w["oda_cumulative"]
             + expat_s * w["expat_count"]
             + year_s * w["diplomatic_year"]
         )
@@ -159,11 +160,9 @@ class Agent3Analyzer:
         }
 
 
-# ======================================================================
 # 1) 위험도 점수
-# ======================================================================
 def _extract_advisory_level(agent1_data: dict) -> int:
-    """'3단계 철수권고 (일부 지역)' 같은 문자열에서 1~4단계 숫자를 뽑아낸다."""
+    # 3단계 철수권고 (일부 지역)' 같은 문자열에서 1~4단계 숫자 추출
     text = (
         agent1_data.get("security_environment", {}).get("current_travel_alarm")
         or agent1_data.get("travel_warning_level")
@@ -198,18 +197,6 @@ def _safety_notice_score(agent1_data: dict) -> tuple[float, int]:
 
 
 def _political_situation_risk_score(agent1_data: dict) -> tuple[float, list]:
-    """
-    recent_situations(외교부 '주요 정세 정보' API 원본 데이터)를 키워드 매칭으로
-    분석해서 0~100 위험도 점수를 계산
-
-    반환: (점수, 매칭된 이벤트 목록) - 매칭 목록은 data_sources/evidence 설명용으로 같이 반환.
-    정상적인 정권 교체(내각 출범, 선거 등)처럼 키워드가 안 걸리는 이벤트는 0점 처리된다
-    (정권 교체 자체를 위험 신호로 보지 않기 때문).
-
-    주의: API가 최신 이벤트를 못 줄 때가 있어서 - "최근 기간 내 이벤트가 하나도 없으면 전체 리스트로 폴백"
-    처리한다. (기간 내 이벤트가 있는데 그중 위험 키워드가 안 걸리는 것과, 기간 내
-    이벤트 자체가 없는 것은 다르게 취급 - 전자는 진짜로 0점, 후자만 폴백)
-    """
     situations = agent1_data.get("recent_situations") or []
     today = _dt.date.today()
 
@@ -339,6 +326,7 @@ def _build_country_row(agent1_data: dict, agent2_data: dict) -> dict:
         "political_risk_keyword_score": risk["components"]["political_keyword_risk"],
         "expat_count": agent1_data["expat_count"],
         "diplomatic_year": agent1_data["diplomatic_year"],
+        "trade_volume": _extract_trade_volume(agent2_data),  # 무역 규모 데이터 매핑 추가
         "oda_cumulative_usd_million": _extract_oda_cumulative_usd(agent2_data),
         "oda_trend_score": _extract_oda_trend_score(agent2_data),
         "org_count": _extract_org_count(agent2_data),
@@ -366,7 +354,7 @@ class InsightGenerator:
             "data_sources": {
                 "risk_score": "외교부 해외안전여행 API (여행경보 단계 / 안전공지 건수 / 주요정세 키워드 매칭) → Agent3가 0~100 점수로 변환",
                 "evidence": "외교부 해외안전여행 API (Agent1) - 가공 없이 원본 그대로 전달",
-                "cooperation_index":"교민수·수교연도(Agent1) + KOICA 국가별 지원실적 CSV(15051102)",
+                "cooperation_index":"무역규모(Agent2 trade.volume) + 교민수·수교연도(Agent1) + KOICA 국가별 지원실적 CSV(15051102)",
                 "opportunity_score":"KOICA 국가별 지원실적 CSV(15051102) + 외교부 해외진출현황 CSV(15076565)",
                 "similar_countries": "위험도, 협력지수, 기회지수를 이용한 비교 분석 (참조국 데이터셋: Orchestrator 제공)",
             },
@@ -405,6 +393,7 @@ class InsightGenerator:
         result["similar_countries"] = [[k, float(v)] for k, v in similar.items()]
 
         result["data_sources"]["cooperation_index"] = (
+            "무역규모 = 관세청/무역협회 통계 API (Agent2 trade.volume), "
             "ODA누적액 = 외교부 무역관계/KOICA ODA API (Agent2 oda.cumulative), "
             "교민수/수교연도 = 외교부 재외동포/외교관계 데이터 (Agent1). "
             f"비교 기준: {reference_source_note}"
