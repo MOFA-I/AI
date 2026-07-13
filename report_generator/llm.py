@@ -28,7 +28,7 @@ def generate_briefing(user_query: str, target: str, countries: list[str],
         import anthropic
         client = anthropic.Anthropic()  # ANTHROPIC_API_KEY 환경변수
         resp = client.messages.create(
-            model=MODEL, max_tokens=1500, system=SYSTEM,
+            model=MODEL, max_tokens=3000, system=SYSTEM,
             messages=[{"role": "user", "content": prompt}],
         )
         text = resp.content[0].text.strip()

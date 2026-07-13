@@ -22,4 +22,4 @@ KOICA_BSNS_TY_CD_MAP = {}      # 사업유형코드
 KOICA_SPORT_REALM_CD_MAP = {}  # 분야코드
 KOICA_NATION_CD_MAP = {}       # KOICA 자체 국가코드
 
-DATA_GO_KR_SERVICE_KEY = os.getenv("DATA_GO_KR_SERVICE_KEY")
+DATA_GO_KR_SERVICE_KEY = os.getenv("DATA_GO_KR_API_KEY")
