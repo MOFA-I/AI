@@ -217,3 +217,9 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 .DS_Store
+
+# Agent 4 report generator HTML output (regenerated per request)
+reports/
+
+# Claude Code local tool settings (machine-specific, not shared)
+.claude/
