@@ -64,7 +64,7 @@ class IssueAnalyzer:
                 {
                     "date": item.get("wrtDt"),
                     "title": item.get("title"),
-                    "summary": html.unescape(item.get("content", "")).replace("\r\n", " ")[:200],
+                    "summary": html.unescape(item.get("content", "")).replace("\r\n", " ").strip(),
                 }
                 for item in safety_items[:5]
             ],
