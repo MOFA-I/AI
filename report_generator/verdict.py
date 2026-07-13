@@ -41,4 +41,4 @@ def _risk_label(r): return "낮음" if r < 40 else "중간" if r < 70 else "높�
 def _grade_label(g): return "높음" if g >= 4 else "보통" if g == 3 else "낮음"
 def _comp_label(k):
     return {"travel_advisory": "여행경보", "safety_notice_freq": "안전공지 빈도",
-            "socio_indicator_risk": "사회지표"}.get(k, k)
+            "socio_indicator_risk": "사회지표", "political_keyword_risk": "정치 이슈 리스크"}.get(k, k)

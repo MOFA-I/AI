@@ -12,7 +12,7 @@ from typing import Optional
 from .schemas import Agent1Data, Agent2Data, Agent3Data, Chart
 
 _COMP_LABEL = {"travel_advisory": "여행경보", "safety_notice_freq": "안전공지 빈도",
-               "socio_indicator_risk": "사회지표"}
+               "socio_indicator_risk": "사회지표", "political_keyword_risk": "정치 이슈 리스크"}
 
 
 def build_dashboard(countries: list[str],
