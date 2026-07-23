@@ -26,22 +26,42 @@ def _situation_date(entry: dict) -> str | None:
     return f"{year}-{month:02}-{day:02}"
 
 
+_WARNING_LEVELS = [
+    (1, "여행유의", "attention"),
+    (2, "여행자제", "control"),
+    (3, "철수권고", "limita"),
+    (4, "여행금지", "ban"),
+]
+
+
 def _travel_warning_level(entry: dict) -> str | None:
     """attention(1단계)~ban(4단계) 중 활성화된 가장 높은 단계를 찾는다. _partial이면 일부 지역에만 적용."""
-    levels = [
-        (1, "여행유의", "attention"),
-        (2, "여행자제", "control"),
-        (3, "철수권고", "limita"),
-        (4, "여행금지", "ban"),
-    ]
     highest = None
-    for level, label, key in levels:
+    for level, label, key in _WARNING_LEVELS:
         full = entry.get(key) or entry.get(f"{key}_yna")
         partial = entry.get(f"{key}_partial") or entry.get(f"{key}_yn_partial")
         if full or partial:
             scope = "전역" if full else "일부 지역"
             highest = f"{level}단계 {label} ({scope})"
     return highest
+
+
+def _travel_warning_regions(entry: dict) -> list[dict]:
+    """단계별로 실제 활성화된 지역명(_note 필드)까지 구체적으로 반환.
+    한 국가에 여러 단계가 동시에 걸려있을 수 있어 (예: 필리핀), 활성화된 단계를 전부 담는다."""
+    result = []
+    for level, label, key in _WARNING_LEVELS:
+        full = entry.get(key) or entry.get(f"{key}_yna")
+        partial = entry.get(f"{key}_partial") or entry.get(f"{key}_yn_partial")
+        if not (full or partial):
+            continue
+        result.append({
+            "level": level,
+            "label": label,
+            "scope": "전역" if full else "일부 지역",
+            "regions": entry.get(f"{key}_note") if partial else None,
+        })
+    return result
 
 
 class IssueAnalyzer:
@@ -60,6 +80,7 @@ class IssueAnalyzer:
         return {
             "country": country_name,
             "travel_warning_level": _travel_warning_level(warning_items[0]) if warning_items else None,
+            "travel_warning_regions": _travel_warning_regions(warning_items[0]) if warning_items else [],
             "recent_safety_notices": [
                 {
                     "date": item.get("wrtDt"),
