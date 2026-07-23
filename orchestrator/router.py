@@ -39,8 +39,15 @@ def run(user_input: str, user_type: str) -> dict:
     user_type: "일반사용자" | "기업" | "연구자"
     """
     intent = extract_intent(user_input, user_type)
-    country_name = intent.get("country_name")
 
+    if intent.get("refuse"):
+        return {
+            "type": "refused",
+            "reason": intent.get("refuse_reason"),
+            "message": "죄송하지만 이 질문에는 답변드릴 수 없어요. 국가의 여행경보·안전·비자·정세 관련 질문을 다시 입력해주세요.",
+        }
+
+    country_name = intent.get("country_name")
     if not country_name:
         return {"error": "국가명을 파악하지 못했어요. 국가명을 포함해서 다시 질문해주세요."}
 
