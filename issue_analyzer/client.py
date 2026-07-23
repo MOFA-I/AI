@@ -6,7 +6,8 @@ from issue_analyzer.config import DATA_GO_KR_API_KEY
 
 def _get(base_url: str, operation: str, params: dict) -> dict:
     query = {"serviceKey": DATA_GO_KR_API_KEY, "returnType": "JSON", **params}
-    response = httpx.get(f"{base_url}{operation}", params=query, timeout=10.0)
+    # Render 등 해외 리전 서버에서 data.go.kr까지 응답이 느릴 때가 있어 여유 있게 설정
+    response = httpx.get(f"{base_url}{operation}", params=query, timeout=30.0)
     response.raise_for_status()
     return response.json()
 
@@ -14,7 +15,8 @@ def _get(base_url: str, operation: str, params: dict) -> dict:
 def _get_xml(base_url: str, operation: str, params: dict) -> dict:
     """CountrySafetyService는 returnType 옵션이 없고 항상 XML로만 응답한다."""
     query = {"serviceKey": DATA_GO_KR_API_KEY, **params}
-    response = httpx.get(f"{base_url}{operation}", params=query, timeout=10.0)
+    # Render 등 해외 리전 서버에서 data.go.kr까지 응답이 느릴 때가 있어 여유 있게 설정
+    response = httpx.get(f"{base_url}{operation}", params=query, timeout=30.0)
     response.raise_for_status()
     return xmltodict.parse(response.text)
 
