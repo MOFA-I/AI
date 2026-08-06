@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+reports/
+eval/results/
+.geo_cache.json
+.env

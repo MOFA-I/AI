@@ -69,9 +69,20 @@ def _summarize_inputs(countries, agent1, agent2, agent3) -> str:
 
 
 def build_briefing_prompt(user_query: str, target: str, countries: list[str],
-                          agent1, agent2, agent3) -> str:
+                          agent1, agent2, agent3, unverified=None) -> str:
     g = TARGET_GUIDE[target]
     data = _summarize_inputs(countries, agent1, agent2, agent3)
+
+    retry_note = ""
+    if unverified:
+        bad = ", ".join(f"{c.value:g}({c.section})" for c in unverified[:8])
+        retry_note = (
+            "\n[재작성 지시 — 중요]\n"
+            "이전 작성에서 아래 수치는 제공 데이터에 존재하지 않는 값이었다: "
+            f"{bad}\n"
+            "이 수치들을 삭제하거나 아래 [정량 데이터]에 명시된 값으로 교체하라. "
+            "데이터에 없는 수치는 어떤 경우에도 새로 만들지 말고, "
+            "필요하면 수치 없이 서술하라.\n")
 
     return f"""[사용자 질문]
 {user_query or "국가 분석 요청"}
@@ -85,7 +96,7 @@ def build_briefing_prompt(user_query: str, target: str, countries: list[str],
 - 위험도(0~100): 여행경보 40% + 안전공지 빈도 30% + 정세키워드 30%
 - Cooperation Index: 무역 30% + ODA 30% + 교민 20% + 수교연도 20% → 5등급
 
-[출력 — 아래 JSON만, 수치는 위 데이터 그대로 인용]
+{retry_note}[출력 — 아래 JSON만, 수치는 위 데이터 그대로 인용]
 {{
   "executive_summary": "핵심 3줄",
   "situation_analysis": "...",

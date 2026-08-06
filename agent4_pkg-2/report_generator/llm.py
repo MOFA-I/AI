@@ -20,10 +20,16 @@ MODEL = os.getenv("AGENT4_LLM_MODEL", "claude-sonnet-4-6")
 
 
 def generate_briefing(user_query: str, target: str, countries: list[str],
-                      agent1, agent2, agent3) -> tuple[Briefing, str]:
-    """반환: (Briefing, 사용된 모델명)"""
+                      agent1, agent2, agent3,
+                      unverified=None) -> tuple[Briefing, str]:
+    """반환: (Briefing, 사용된 모델명)
+
+    unverified: 이전 생성에서 검증 실패한 수치 목록. 전달되면 재생성 프롬프트에
+    "이 수치들은 데이터에 없으니 쓰지 말라"는 지시가 추가된다.
+    """
     prompt = build_briefing_prompt(user_query, target, countries,
-                                   agent1, agent2, agent3)
+                                   agent1, agent2, agent3,
+                                   unverified=unverified)
     try:
         import anthropic
         client = anthropic.Anthropic()  # ANTHROPIC_API_KEY 환경변수

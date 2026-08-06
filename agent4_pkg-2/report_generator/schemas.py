@@ -109,6 +109,25 @@ class Agent4Input(BaseModel):
 
 # ══════════════════════════ 출력 ══════════════════════════
 
+class NumericClaim(BaseModel):
+    """브리핑에 등장했으나 원본 데이터에서 확인되지 않은 수치."""
+    section: str
+    kind: str
+    value: float
+    context: str
+
+
+class Verification(BaseModel):
+    """브리핑 수치 검증 결과 (validator.py 산출).
+    LLM 생성 문장의 모든 지표 수치를 입력 데이터와 대조한 기록."""
+    checked: int = 0
+    verified: int = 0
+    rate: float = 1.0
+    unverified: list[NumericClaim] = []
+    passed: bool = True
+    regenerated: bool = False       # 검증 실패로 재생성했는지
+
+
 class Briefing(BaseModel):
     executive_summary: str = ""
     situation_analysis: str = ""
@@ -176,4 +195,5 @@ class Agent4Output(BaseModel):
     map: MapBlock
     dashboard: dict = {"charts": []}
     evidence: list[EvidenceEntry] = []
+    verification: Verification = Verification()
     files: dict = {"html": None, "pdf": None}

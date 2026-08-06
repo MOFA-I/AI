@@ -215,6 +215,31 @@ def render_html(out: Agent4Output) -> str:
     charts_html = "".join(f'<div class="chart">{render_chart(c)}</div>'
                           for c in out.dashboard["charts"])
     map_html = render_map(out.map)
+    v = out.verification
+    if v.checked:
+        badge_color = "#2e7d32" if v.passed else "#f9a825"
+        badge_text = "전량 검증 완료" if v.passed else f"{len(v.unverified)}건 확인 필요"
+        unverified_rows = ""
+        if v.unverified:
+            items = "".join(
+                f"<li>{c.value:g} <span style='color:#888'>({c.section})</span></li>"
+                for c in v.unverified)
+            unverified_rows = (
+                f"<div style='margin-top:8px;font-size:.88em'>"
+                f"미확인 수치: <ul style='margin:4px 0 0 18px'>{items}</ul></div>")
+        regen = " · 재생성 1회 수행" if v.regenerated else ""
+        verification_html = f'''
+        <div style="background:#f1f8f4;border-left:4px solid {badge_color};
+                    padding:12px 16px;margin-top:16px;font-size:.9em">
+          <b>🔎 브리핑 수치 검증</b> —
+          <span style="color:{badge_color};font-weight:600">{badge_text}</span><br>
+          생성된 브리핑에서 지표 수치 {v.checked}건을 추출해 원본 데이터와 대조,
+          {v.verified}건 일치 (정확도 {v.rate:.0%}){regen}.
+          {unverified_rows}
+        </div>'''
+    else:
+        verification_html = ""
+
     evidence_rows = "".join(
         f"<tr><td><b>{e.agent}</b></td><td>{e.source}</td>"
         f"<td>{e.action}</td><td>{e.at or ''}</td></tr>"
@@ -268,6 +293,7 @@ th{{background:#1a2980;color:#fff}} tr:nth-child(even){{background:#f8f9fb}}
 <section><h2>🔍 Evidence — 전 Agent 작업 로그</h2>
 <table><thead><tr><th>Agent</th><th>출처/기술</th><th>작업</th><th>시각</th></tr></thead>
 <tbody>{evidence_rows}</tbody></table>
+{verification_html}
 <div class="disclaimer">⚠️ 본 보고서는 외교부·KOICA 공공데이터 기반 자동 분석이며
 정책 참고용입니다. 브리핑 문장은 AI가 생성했고, 모든 수치·지도·차트는 원천 데이터에서
 결정적으로 계산되었습니다(LLM 미개입).</div></section>
